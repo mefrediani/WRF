@@ -383,6 +383,7 @@ state  real    fs_spotting_lkhd          ij        misc        1         -      
 # Particle properties: fs_p_[property_name]
 # 
 state integer  fs_p_id             {fs_maxsize}    dyn_em      1         -      -  "fs_p_id"	          "particle unique ID" "ID"
+state integer  fs_p_src            {fs_maxsize}    dyn_em      1         -      -  "fs_p_src"	          "particle source ID - source MPI proc" "src"
 state integer  fs_p_dt             {fs_maxsize}    dyn_em      1         -      -  "fs_p_dt"	          "particle active time steps" "count"
 state  real    fs_p_x              {fs_maxsize}    dyn_em      1         -      -  "fs_p_x"	          "particle x position" "index"
 state  real    fs_p_y              {fs_maxsize}    dyn_em      1         -      -  "fs_p_y"	          "particle y position" "index"

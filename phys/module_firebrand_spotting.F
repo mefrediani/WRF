@@ -41,13 +41,11 @@ MODULE module_firebrand_spotting
 
     INTEGER, PARAMETER :: dp = KIND(0.d0)      ! double precision
 
-    INTEGER, PARAMETER :: wrfdbg = 0    
+    INTEGER, PARAMETER :: wrfdbg = 10    
     ! Fuel parameters must match values from module_fr_phys.F: SUBROUTINE set_fuel_params(nfuel_cat0, nfuel_cat)
     INTEGER, PARAMETER :: no_fuel_cat = 14
     INTEGER, PARAMETER :: nf_sb = 204          ! maximum category on
     INTEGER, PARAMETER :: nfuelcats = 53       ! number of fuel categories that are specified
-
-    INTEGER, PARAMETER :: sp_fuel_src_typ_n = 1
 
     REAL,    PARAMETER :: grav = 9.80616_dp    ! gravity (m/s2)
     REAL,    PARAMETER :: rdry = 287.04_dp     ! dry air (J/Kg-K)
@@ -159,6 +157,7 @@ CONTAINS
         grid,      &
         cf,        &
         fs_p_id,     &
+        fs_p_src,    &
         fs_p_dt,     &
         fs_p_x,      &
         fs_p_y,      &
@@ -198,7 +197,7 @@ CONTAINS
         LOGICAL,  INTENT(INOUT) :: fs_count_reset
 
         ! Firebrand Spotting Particle Properties (fs_p_*)
-        INTEGER,  INTENT(INOUT), DIMENSION(:)    :: fs_p_id, fs_p_dt
+        INTEGER,  INTENT(INOUT), DIMENSION(:)    :: fs_p_id, fs_p_dt, fs_p_src
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_mass, fs_p_diam, fs_p_effd
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel
@@ -255,6 +254,7 @@ CONTAINS
         fs_gen_idmax   = 0
         fs_p_id    = 0
         fs_p_dt    = 0
+        fs_p_src   = 0
         fs_p_x     = 0.0_dp
         fs_p_y     = 0.0_dp
         fs_p_z     = 0.0_dp
@@ -653,9 +653,10 @@ END FUNCTION order_val
 
 !=============================================================
 !    PURE & ! can't call wrf_fatal in pure routines
-    SUBROUTINE generate_firebrands( fs_p_id, fs_p_dt, fs_p_z, fs_p_x, fs_p_y,   & 
+    SUBROUTINE generate_firebrands( fs_p_id, fs_p_src, fs_p_dt, fs_p_z, fs_p_x, fs_p_y,   & 
                                release_i, release_j, release_k, &
-                               active_br, fs_gen_idmax, &
+                               release_dt, release_src, &
+                               active_br, fs_gen_idmax, myprocid, &
                                release_prop, fs_p_prop)
 !=============================================================
 
@@ -664,10 +665,12 @@ END FUNCTION order_val
         TYPE(p_properties), INTENT(IN), DIMENSION(:):: release_prop
         TYPE(p_properties), INTENT(OUT),DIMENSION(:):: fs_p_prop
 
-        INTEGER, INTENT(INOUT), DIMENSION(:)   :: fs_p_id, fs_p_dt
+        INTEGER, INTENT(INOUT), DIMENSION(:)   :: fs_p_id, fs_p_src, fs_p_dt
         REAL,    INTENT(INOUT), DIMENSION(:)   :: fs_p_z, fs_p_x, fs_p_y
         REAL,    INTENT(INOUT), DIMENSION(:)   :: release_i, release_j, release_k
+        INTEGER, OPTIONAL, INTENT(IN), DIMENSION(:) :: release_dt, release_src
         INTEGER, INTENT(INOUT)  :: fs_gen_idmax
+        INTEGER, INTENT(IN)     :: myprocid
         INTEGER, INTENT(OUT)    :: active_br
 
         LOGICAL :: release_true
@@ -726,7 +729,13 @@ END FUNCTION order_val
                 fs_p_y(ii) = release_j(br)
                 fs_p_z(ii) = release_k(br)
                 fs_p_id(ii) = fs_gen_idmax + 1              ! Assign new IDmax to particle
-                fs_p_dt(ii) = 0 ! firebrand has not been advected yet so dt is zero
+
+                IF (.NOT. PRESENT(release_dt)) fs_p_dt(ii) = 0 ! firebrand has not been advected yet so dt is zero
+                IF (.NOT. PRESENT(release_src)) fs_p_src(ii) = myprocid + fs_p_id(ii)
+
+                IF PRESENT(release_dt) fs_p_dt(ii) = release_dt(br)
+                IF PRESENT(release_src) fs_p_src(ii) = release_src(br)
+
                 fs_p_prop(ii)%p_mass  = release_prop(br)%p_mass
                 fs_p_prop(ii)%p_diam  = release_prop(br)%p_diam
                 fs_p_prop(ii)%p_effd = release_prop(br)%p_effd
@@ -1166,9 +1175,9 @@ END FUNCTION order_val
         ! firebrand burnout
         !-------------------------------------------------------------------------------
 
-        ! WRITE (msg,'(5(f12.8,1x))') fbprop%p_mass, fbprop%p_diam, &
-        !                             fbprop%p_effd, fbprop%p_temp, fbprop%p_tvel
-        ! CALL wrf_debug (wrfdbg, 'SPFire br physics1 m, d, e, t, v: '//msg)
+        ! WRITE (msg,'(6(f12.8,1x))') fbprop%p_mass, fbprop%p_diam, &
+        !                             fbprop%p_effd, fbprop%p_temp, fbprop%p_tvel, hgt
+        ! CALL wrf_debug (wrfdbg, 'SPFire br physics1 m,d,e,t,v,h : '//msg)
         
         CALL burnout(p_mass  = fbprop%p_mass,   & ! firebrand mass (g)                   
                      p_diam  = fbprop%p_diam,   & ! firebrand diameter (mm) 
@@ -1477,6 +1486,7 @@ END FUNCTION order_val
         cf,                    &
         grid,                  &
         fs_p_id,               &
+        fs_p_src,              &
         fs_p_dt,               &
         fs_p_x,                &
         fs_p_y,                &
@@ -1551,7 +1561,7 @@ END FUNCTION order_val
         INTEGER, INTENT(INOUT)  :: fs_last_gen_dt, fs_gen_idmax
 
         ! Firebrand Spotting Particle Properties (fs_p_*)
-        INTEGER, INTENT(INOUT), DIMENSION(:)    :: fs_p_id, fs_p_dt
+        INTEGER, INTENT(INOUT), DIMENSION(:)    :: fs_p_id, fs_p_src, fs_p_dt
         REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_mass, fs_p_diam, fs_p_effd
         REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel
@@ -1643,13 +1653,14 @@ END FUNCTION order_val
 
         INTEGER, SAVE :: MasterId = 0
         INTEGER, SAVE :: ntiles = 0
+        INTEGER, SAVE :: myprocid = 0
         LOGICAL, SAVE :: IamMaster = .FALSE. 
 
-        INTEGER, ALLOCATABLE, DIMENSION(:) :: nbr_id, r_id, r_dt
+        INTEGER, ALLOCATABLE, DIMENSION(:) :: nbr_id, r_id, r_dt, r_src
         REAL,    ALLOCATABLE, DIMENSION(:) :: r_x, r_y, r_z
 
         ! MPI receive p_properties
-        REAL, ALLOCATABLE, DIMENSION(:) :: r_p_m,r_p_d,r_p_e,r_p_t,r_p_v
+        REAL, ALLOCATABLE, DIMENSION(:) :: r_p_m, r_p_d, r_p_e, r_p_t, r_p_v
         TYPE(p_properties), ALLOCATABLE, DIMENSION(:) :: fb_mdetv
 
 
@@ -1669,6 +1680,7 @@ END FUNCTION order_val
             CALL fs_mpi_init(grid) ! should be called in fspotting_init (?)
 
         ntiles = mpiprocs
+        myprocid = my_id * 1000000
         IF ( wrf_dm_on_monitor() ) THEN 
             IamMaster = .TRUE. 
             MasterId = my_id
@@ -1676,6 +1688,7 @@ END FUNCTION order_val
 #else
         IamMaster = .TRUE.  ! initialized with FALSE. It should be TRUE in serial compilation
         ntiles = 1 ! used to allocate the arrays for incomming mpi comms. ntiles=1 in serial builds
+        myprocid = 1* 1000000
 #endif
 
         hist_flag = .FALSE. 
@@ -2104,12 +2117,14 @@ END FUNCTION order_val
                 
                 CALL generate_firebrands(&
                     fs_p_id = fs_p_id, &
+                    fs_p_src = fs_p_src, &
                     fs_p_dt = fs_p_dt, &
                     fs_p_z  = fs_p_z,  &
                     fs_p_x  = fs_p_x,  &
                     fs_p_y  = fs_p_y,  &
                     fs_p_prop   = fs_p_prop,    &
                     fs_gen_idmax= fs_gen_idmax, &
+                    myprocid = myprocid,        &
                     release_prop= release_prop, &
                     release_i = release_i, &
                     release_j = release_j, &
@@ -2169,7 +2184,15 @@ END FUNCTION order_val
         IF (active_br > 0) THEN 
 
             WRITE (msg,'(i8)') active_br
-            CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands: '// msg )
+            CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
+
+            do kk=1,active_br
+               WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
+                      kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
+                      fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
+                      fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
+                      fs_p_temp(kk), fs_p_tvel(kk)
+            CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
             
             !-------------------------------------------------------------------------------
             ! Fetch wrf variables for advection
@@ -2439,6 +2462,7 @@ END FUNCTION order_val
                     p_y  = fs_p_y,   &
                     p_z  = fs_p_z,   &
                     p_id = fs_p_id,  &
+                    p_src = fs_p_src,  &
                     p_dt = fs_p_dt,  &
                     fs_p_m = fs_p_mass, &
                     fs_p_d = fs_p_diam, &
@@ -2794,7 +2818,7 @@ END FUNCTION order_val
             CALL wrf_debug (wrfdbg,  'SPFire_driver mpi_check_receive: '//msg)
 
             ! Receiving positions, id, dt
-            ALLOCATE(r_x(nbr_sum), r_y(nbr_sum), r_z(nbr_sum), r_id(nbr_sum), r_dt(nbr_sum))
+            ALLOCATE(r_x(nbr_sum), r_y(nbr_sum), r_z(nbr_sum), r_id(nbr_sum), r_src(nbr_sum), r_dt(nbr_sum))
             !ALLOCATE(release_mpi_ijk(nbr_sum,3))
 
             ! Receiving p_propertieserties
@@ -2803,7 +2827,7 @@ END FUNCTION order_val
 
             CALL fs_mpi_recv(np_id=nbr_id, task_id=task_id, &
                                    r_x=r_x, r_y=r_y, r_z=r_z, &
-                                   r_id=r_id, r_dt=r_dt, &
+                                   r_id=r_id, r_src=r_src, r_dt=r_dt, &
                                    r_p_m=r_p_m, &
                                    r_p_d=r_p_d, & 
                                    r_p_e=r_p_e, &
@@ -2822,16 +2846,19 @@ END FUNCTION order_val
             prior_br = active_br + 1 ! Array is packed so new particles will be assgned at this position
             CALL generate_firebrands(&
                         fs_p_id = fs_p_id, &
+                        fs_p_src = fs_p_src, &
                         fs_p_dt = fs_p_dt, &
                         fs_p_z  = fs_p_z,  &
                         fs_p_x  = fs_p_x,  &
                         fs_p_y  = fs_p_y,  &
-                        fs_gen_idmax    = fs_gen_idmax,    &
-                        active_br   = active_br,   &
-                        !release_ijk = release_mpi_ijk, & 
+                        fs_gen_idmax = fs_gen_idmax,&
+                        myprocid = myprocid,        &
+                        active_br = active_br,      &
                         release_i = r_x, &
                         release_j = r_y, &
                         release_k = r_z, &
+                        release_dt = r_dt, &
+                        release_src = r_src, &
                         release_prop= fb_mdetv, & 
                         fs_p_prop   = fs_p_prop)
 
