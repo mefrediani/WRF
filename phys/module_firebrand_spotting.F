@@ -442,7 +442,7 @@ END FUNCTION order_val
         ! User defined coefficient to increase spotfire likelihood; 
         ! threat = 0 yields zero likelihood
 
-        factor(1)     =  ZERO_dp ! 1:  'Short grass (1 ft)',
+        factor(1)     =  1.0_dp ! 1:  'Short grass (1 ft)',
         factor(2:13)  =  1.0_dp  
         factor(14)    =  ZERO_dp ! 14: 'no fuel',
         factor(15:nfuelcats+1) =  1.0_dp  
