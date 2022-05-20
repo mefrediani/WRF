@@ -733,8 +733,8 @@ END FUNCTION order_val
                 IF (.NOT. PRESENT(release_dt)) fs_p_dt(ii) = 0 ! firebrand has not been advected yet so dt is zero
                 IF (.NOT. PRESENT(release_src)) fs_p_src(ii) = myprocid + fs_p_id(ii)
 
-                IF PRESENT(release_dt) fs_p_dt(ii) = release_dt(br)
-                IF PRESENT(release_src) fs_p_src(ii) = release_src(br)
+                IF (PRESENT(release_dt)) fs_p_dt(ii) = release_dt(br)
+                IF (PRESENT(release_src)) fs_p_src(ii) = release_src(br)
 
                 fs_p_prop(ii)%p_mass  = release_prop(br)%p_mass
                 fs_p_prop(ii)%p_diam  = release_prop(br)%p_diam
@@ -1024,7 +1024,7 @@ END FUNCTION order_val
 
 
 !=============================================================
-    SUBROUTINE prep_release_hgt(release_i, release_j, release_k, release_n, release_prop, levrand_seed)
+    SUBROUTINE prep_release_hgt(release_i, release_j, release_k, release_n, release_prop, levrand_seed, landhgt)
 !=============================================================
 
         !----------------------------------------------------------
@@ -1038,25 +1038,26 @@ END FUNCTION order_val
         REAL,          INTENT(INOUT), DIMENSION(:) :: release_i, release_j
         REAL,          INTENT(INOUT), DIMENSION(:) :: release_k
         INTEGER,       INTENT(IN),    DIMENSION(:) :: release_n
-        INTEGER,       INTENT(IN) :: levrand_seed
+        INTEGER,       INTENT(IN) :: levrand_seed, landhgt
 
         INTEGER :: ii, kk, cnt                   ! counters        
-        INTEGER :: nseeds
+        INTEGER :: nseeds, minhgt
         REAL,    ALLOCATABLE, DIMENSION(:) :: rand_arr, frachgt
         INTEGER, ALLOCATABLE, DIMENSION(:) :: seeds
+
+        minhgt = dp1 + landhgt
 
         !-------------------------------------------------------------------------------
         ! Calculate number of releases and heights from this fire
         !-------------------------------------------------------------------------------
 
-        ALLOCATE(frachgt(SIZE(release_n)*fs_gen_levels))
+        ALLOCATE(frachgt(fs_gen_levels))
         ALLOCATE(rand_arr(SIZE(release_n)*fs_gen_levels))
 
         IF (fs_gen_levels == 1) THEN
             frachgt(:) = dp1
         ELSE
-            frachgt(:) = [( [(REAL(ii-1)* (dp1/REAL(fs_gen_levels-1)), ii=fs_gen_levels, 1, -1)], &
-                                       kk=1,SIZE(release_n))]
+            frachgt(:) = [( REAL(kk-1)*(dp1/REAL(fs_gen_levels-1)), kk=fs_gen_levels, 1, -1)]
         ENDIF
 
         IF (levrand_seed > 0) THEN
@@ -1077,7 +1078,7 @@ END FUNCTION order_val
         ii = SIZE(release_n)+1           ! array index for release at various height (append to end of the array)
         DO cnt=1,SIZE(release_n)         ! loop over release gridpoints and set a new release at the same ij for 1 < hgt < release_k
 
-            DO kk=1, fs_gen_levels -1 ! release at multiple levels 
+            DO kk=1, fs_gen_levels ! release at multiple levels 
 
                 !-------------------------------------------------------------------------------
                 ! Fill release array
@@ -1085,19 +1086,18 @@ END FUNCTION order_val
 
                 release_i(ii) = release_i(cnt)    ! ii increments inside this loop
                 release_j(ii) = release_j(cnt)
-                release_k(ii) = (release_k(cnt)-dp1)*frachgt(ii)+dp1 ! keep a minimum height of 1-m 
+                release_k(ii) = (release_k(cnt)-minhgt)*frachgt(kk)+minhgt ! keep a minimum height of 1-m above landhgt 
 
                 ! if we want to perturb the max_release_hgt in releases_k(cnt), we can change its value now
                 IF (levrand_seed > 0) & 
-                    release_k(ii) = (release_k(cnt)-dp1) * rand_arr(ii) + dp1 ! keep a minimum height of 1-m 
+                    release_k(ii) = (release_k(cnt)-minhgt) * rand_arr(ii) + minhgt ! keep a minimum height of 1-m above landhgt
 
-                !release_prop(cnt) = firebrand_property(pprop(cnt))
                 release_prop(ii)  = release_prop(cnt)
 
                 ! IF (cnt < 3) THEN
-                !     WRITE (msg,'(3(i4,1x),5(f8.2,1x))') cnt, kk, ii, &
-                !         release_i(ii), release_j(ii), release_k(ii), release_k(cnt), rand_arr(ii)
-                !     CALL wrf_debug (wrfdbg, 'SPFire_prep_release c,k,i, ijk: '//msg)
+                WRITE (msg,'(3(i4,1x),5(f8.2,1x))') cnt, kk, ii, &
+                     release_i(ii), release_j(ii), release_k(ii), release_k(cnt), frachgt(kk) !rand_arr(ii)
+                CALL wrf_debug (wrfdbg, 'SPFire_prep_release c,k,i, ijk: '//msg)
                 ! ENDIF
 
                 ii = ii + 1 ! increment release array index
@@ -2104,6 +2104,7 @@ END FUNCTION order_val
                                   release_j = release_j, &
                                   release_k = release_k, & ! max height 
                                   release_n = release_n, &
+                                  landhgt = firebrand_land_hgt, &
                                   release_prop=release_prop, &
                                   levrand_seed = levrand_seed * grid%itimestep) ! force seed to vary in time
 
@@ -2186,14 +2187,14 @@ END FUNCTION order_val
             WRITE (msg,'(i8)') active_br
             CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
 
-            do kk=1,active_br
+            DO kk=1,active_br
                WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
                       kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
                       fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
                       fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
                       fs_p_temp(kk), fs_p_tvel(kk)
-            CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
-            
+               CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
+            ENDDO
             !-------------------------------------------------------------------------------
             ! Fetch wrf variables for advection
             !-------------------------------------------------------------------------------

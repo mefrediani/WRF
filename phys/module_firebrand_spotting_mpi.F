@@ -557,7 +557,7 @@ CONTAINS
 
         INTEGER, INTENT(IN), DIMENSION(:) :: task_id, np_id
         REAL,    INTENT(OUT),DIMENSION(:) :: r_x, r_y, r_z
-        INTEGER, INTENT(OUT),DIMENSION(:) :: r_id, r_dt
+        INTEGER, INTENT(OUT),DIMENSION(:) :: r_id, r_dt, r_src
         REAL,    INTENT(OUT),DIMENSION(:) :: r_p_m, r_p_d, r_p_e, r_p_t, r_p_v
 
         INTEGER :: np_sum, istart, iend, ii
