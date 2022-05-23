@@ -1038,10 +1038,12 @@ END FUNCTION order_val
         REAL,          INTENT(INOUT), DIMENSION(:) :: release_i, release_j
         REAL,          INTENT(INOUT), DIMENSION(:) :: release_k
         INTEGER,       INTENT(IN),    DIMENSION(:) :: release_n
-        INTEGER,       INTENT(IN) :: levrand_seed, landhgt
+        INTEGER,       INTENT(IN) :: levrand_seed
+        REAL,          INTENT(IN) :: landhgt
 
         INTEGER :: ii, kk, cnt                   ! counters        
-        INTEGER :: nseeds, minhgt
+        INTEGER :: nseeds 
+        REAL    :: minhgt
         REAL,    ALLOCATABLE, DIMENSION(:) :: rand_arr, frachgt
         INTEGER, ALLOCATABLE, DIMENSION(:) :: seeds
 
@@ -1086,18 +1088,24 @@ END FUNCTION order_val
 
                 release_i(ii) = release_i(cnt)    ! ii increments inside this loop
                 release_j(ii) = release_j(cnt)
-                release_k(ii) = (release_k(cnt)-minhgt)*frachgt(kk)+minhgt ! keep a minimum height of 1-m above landhgt 
+                IF (release_k(cnt) > minhgt) THEN
+                   release_k(ii) = (release_k(cnt)-minhgt)*frachgt(kk)+minhgt ! keep a minimum height of 1-m above landhgt 
+                   ! if we want to perturb the max_release_hgt in releases_k(cnt), we can change its value now
+                   IF (levrand_seed > 0) & 
+                        release_k(ii) = (release_k(cnt)-minhgt) * rand_arr(ii) + minhgt
+                ELSE
+                   release_k(ii) = (release_k(cnt)-dp1)*frachgt(kk)+dp1 ! keep a minimum height of 1-m above landhgt 
+                   IF (levrand_seed > 0) & 
+                        release_k(ii) = (release_k(cnt)-dp1) * rand_arr(ii) + dp1
+                ENDIF
 
-                ! if we want to perturb the max_release_hgt in releases_k(cnt), we can change its value now
-                IF (levrand_seed > 0) & 
-                    release_k(ii) = (release_k(cnt)-minhgt) * rand_arr(ii) + minhgt ! keep a minimum height of 1-m above landhgt
 
                 release_prop(ii)  = release_prop(cnt)
 
                 ! IF (cnt < 3) THEN
-                WRITE (msg,'(3(i4,1x),5(f8.2,1x))') cnt, kk, ii, &
-                     release_i(ii), release_j(ii), release_k(ii), release_k(cnt), frachgt(kk) !rand_arr(ii)
-                CALL wrf_debug (wrfdbg, 'SPFire_prep_release c,k,i, ijk: '//msg)
+                WRITE (msg,'(2(i4,1x),i8,1x,6(f8.2,1x))') cnt, kk, ii, &
+                     release_i(ii), release_j(ii), release_k(ii), release_k(ii), frachgt(kk), rand_arr(ii)
+                CALL wrf_debug (0, 'SPFire_prep_release c,k,i, ijk: '//msg)
                 ! ENDIF
 
                 ii = ii + 1 ! increment release array index
