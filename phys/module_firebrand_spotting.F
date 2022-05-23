@@ -1068,7 +1068,7 @@ END FUNCTION order_val
             CALL random_seed(size=nseeds)
             ALLOCATE(seeds(nseeds))
             seeds = [(( release_i(ii) * release_j(ii) * levrand_seed * kk, &
-                        kk=1, fs_gen_levels -1), &
+                        kk=1, fs_gen_levels), &
                         ii=1, SIZE(release_n))] ! force seed to vary across space
             CALL random_seed(put = seeds)
             DEALLOCATE(seeds)
@@ -1078,9 +1078,9 @@ END FUNCTION order_val
 
 
         ii = SIZE(release_n)+1           ! array index for release at various height (append to end of the array)
-        DO cnt=1,SIZE(release_n)         ! loop over release gridpoints and set a new release at the same ij for 1 < hgt < release_k
 
-            DO kk=1, fs_gen_levels ! release at multiple levels 
+        DO kk=2, fs_gen_levels ! release at the remaining levels below maxhgt (k=1 is already filled with maxhgt) 
+           DO cnt=1,SIZE(release_n) ! loop over release gridpoints and set a new release at the same ij for 1 < hgt < release_k
 
                 !-------------------------------------------------------------------------------
                 ! Fill release array
@@ -1088,31 +1088,32 @@ END FUNCTION order_val
 
                 release_i(ii) = release_i(cnt)    ! ii increments inside this loop
                 release_j(ii) = release_j(cnt)
-                IF (release_k(cnt) > minhgt) THEN
-                   release_k(ii) = (release_k(cnt)-minhgt)*frachgt(kk)+minhgt ! keep a minimum height of 1-m above landhgt 
+                IF (release_k(cnt) >= minhgt) THEN
+                   release_k(ii) = ((release_k(cnt)-minhgt) * frachgt(kk)) + minhgt ! keep a minimum height of 1-m above landhgt 
                    ! if we want to perturb the max_release_hgt in releases_k(cnt), we can change its value now
                    IF (levrand_seed > 0) & 
-                        release_k(ii) = (release_k(cnt)-minhgt) * rand_arr(ii) + minhgt
+                        release_k(ii) = ((release_k(cnt)-minhgt) * rand_arr(ii)) + minhgt
                 ELSE
-                   release_k(ii) = (release_k(cnt)-dp1)*frachgt(kk)+dp1 ! keep a minimum height of 1-m above landhgt 
+                   release_k(ii) = ((release_k(cnt)-dp1) * frachgt(kk)) + dp1 ! keep a minimum height of 1-m above landhgt 
                    IF (levrand_seed > 0) & 
-                        release_k(ii) = (release_k(cnt)-dp1) * rand_arr(ii) + dp1
+                        release_k(ii) = ((release_k(cnt)-dp1) * rand_arr(ii)) + dp1
                 ENDIF
 
 
                 release_prop(ii)  = release_prop(cnt)
 
                 ! IF (cnt < 3) THEN
-                WRITE (msg,'(2(i4,1x),i8,1x,6(f8.2,1x))') cnt, kk, ii, &
-                     release_i(ii), release_j(ii), release_k(ii), release_k(ii), frachgt(kk), rand_arr(ii)
-                CALL wrf_debug (0, 'SPFire_prep_release c,k,i, ijk: '//msg)
+                ! WRITE (msg,'(2(i4,1x),i8,1x,6(f8.3,1x))') cnt, kk, ii, &
+                !      release_i(ii), release_j(ii), release_k(cnt), release_k(ii), frachgt(kk), rand_arr(ii)
+                ! CALL wrf_debug (0, 'SPFire_prep_release c,k,i, ijk: '//msg)
                 ! ENDIF
 
                 ii = ii + 1 ! increment release array index
 
             ENDDO
-
         ENDDO
+
+        ! Add another loop here to perturb release_k from ii=,SIZE(release_n) -> currently set to maxhgt
 
     END SUBROUTINE prep_release_hgt
 !=============================================================
