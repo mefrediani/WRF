@@ -1769,7 +1769,9 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
 
         firepts = 0
-        fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) + grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
+        ! fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) + grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
+        fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
+        ! Accumulation prioritises firebrands from gridpts mostly burnt vs recently ignited
 
         !-------------------------------------------------------------------------------
         ! Updated fuel moisture from WRF-fire
