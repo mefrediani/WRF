@@ -910,7 +910,7 @@ END FUNCTION order_val
 ! fpij = 298, sr = 3: 297/3+1 = 100
 ! fpij = 299, sr = 3: 298/3+1 = 100.333
 ! fpij = 300, sr = 3: 299/3+1 = 100.666
-! fpij = 301, sr = 3: 300/3+1 = 101
+! fpij = 301, sr = 3maxhgt_usr: 300/3+1 = 101
 
 ! fpij = 297, sr = 4: 296/4+1 = 75.00
 ! fpij = 298, sr = 4: 297/4+1 = 75.25
@@ -1188,16 +1188,16 @@ END FUNCTION order_val
         !                             fbprop%p_effd, fbprop%p_temp, fbprop%p_tvel, hgt
         ! CALL wrf_debug (wrfdbg, 'SPFire br physics1 m,d,e,t,v,h : '//msg)
         
-        CALL burnout(p_mass  = fbprop%p_mass,   & ! firebrand mass (g)                   
-                     p_diam  = fbprop%p_diam,   & ! firebrand diameter (mm) 
-                     p_effd  = fbprop%p_effd,   & ! firebrand effective diameter (mm) 
-                     p_temp  = fbprop%p_temp,   & ! firebrand temperature (K) 
-                     p_tvel  = fbprop%p_tvel,   & ! firebrand terminal velocity (m/s)
-                     aird    = loc_d,    & ! g/m3   
-                     pres    = loc_p,    & ! Pa
-                     temp    = loc_t,    & ! K
-                     loc_w   = loc_w,    & ! m/s
-                     dt      = dt)
+        ! CALL burnout(p_mass  = fbprop%p_mass,   & ! firebrand mass (g)                   
+        !              p_diam  = fbprop%p_diam,   & ! firebrand diameter (mm) 
+        !              p_effd  = fbprop%p_effd,   & ! firebrand effective diameter (mm) 
+        !              p_temp  = fbprop%p_temp,   & ! firebrand temperature (K) 
+        !              p_tvel  = fbprop%p_tvel,   & ! firebrand terminal velocity (m/s)
+        !              aird    = loc_d,    & ! g/m3   
+        !              pres    = loc_p,    & ! Pa
+        !              temp    = loc_t,    & ! K
+        !              loc_w   = loc_w,    & ! m/s
+        !              dt      = dt)
 
 !         WRITE (msg,'(4(f12.8,1x))') fbprop%p_mass, fbprop%p_diam, &
 !                                     fbprop%p_effd, fbprop%p_temp
@@ -1792,273 +1792,13 @@ END FUNCTION order_val
             firepts = COUNT(fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) > ZERO_dp)
             Ngrdpts = 0 ! Number of active fire points of valid fuel categories
 
-            LimPot = 0.000001_dp ! 1e-6
-            MeanPot = ZERO_dp 
+            ! !===============================================================================
+            ! ! Firebrand Generation - Release Firebrands - Part 3
+            ! !===============================================================================
 
-            IF (firepts > 0) THEN 
 
-                !WRITE (msg,'(1(i6,1x))') firepts
-                !CALL wrf_debug (wrfdbg, 'SPFire_rel firepts: '//msg)
-
-                !-------------------------------------------------------------------------------
-                ! Get fuel category from WRF-FIRE and calculate release potential
-                !-------------------------------------------------------------------------------
-
-                ALLOCATE(fcat_fr(ifps:ifpe,jfps:jfpe), fcat_factor(ifps:ifpe,jfps:jfpe), RelPot(ifps:ifpe,jfps:jfpe))!, rel_fcat(ifps:ifpe,jfps:jfpe))
-                fcat_fr(:,:)  = 0
-                RelPot(:,:) = ZERO_dp
-                fcat_factor(:,:) = ZERO_dp
-
-                fcat_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
-                                                                    cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe)), &
-                                                       SHAPE(fcat_fr))
-
-                fcat_factor(ifps:ifpe,jfps:jfpe)= firebrand_gen_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE, SHAPE(fcat_fr)) 
-
-                RelPot(ifps:ifpe,jfps:jfpe) = RESHAPE(firebrand_gen_potential(&
-                                                             fuel_fgi=grid%fgip(ifps:ifpe,jfps:jfpe), &
-                                                             fuel_mcg=fmcg_2df(ifps:ifpe,jfps:jfpe), & 
-                                                             !fuel_mcg=grid%fmcg2df(ifps:ifpe,jfps:jfpe), & 
-                                                             factor=fcat_factor(ifps:ifpe,jfps:jfpe),&
-                                                             fire_rate=fs_fire_ROSdt(ifps:ifpe,jfps:jfpe)), &
-                                                         SHAPE(fcat_fr)) 
-
-                ! Calculate Release Potential for each burning fuel cat
-                !-------------------------------------------------------------------------------
-
-                Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)! RelPot do not count cat with factor of 0
-
-                ! In Large Fires
-                ! Try to increase minimum LimPot to remove very low values of Release Potential
-                !-------------------------------------------------------------------------------
-                IF (Ngrdpts > fs_gen_lim) THEN
-                    LimPot = 10.0_dp * LimPot ! 1e-5
-                    Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
-
-                    IF (Ngrdpts > fs_gen_lim) THEN
-                        LimPot = 10.0_dp * LimPot ! 1e-4
-                        Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
-
-                    ENDIF
-                ENDIF
-                ! WRITE (msg,'(1(i8,1x), 1(f14.8,1x))') Ngrdpts, LimPot
-                ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, LimP: '//msg)
-
-
-                WRITE (msg,'(1(i6,1x))') Ngrdpts
-                CALL wrf_debug (wrfdbg, 'SPFire_rel Ngrdpts: '//msg)
-
-                ! Set a threshold for Potentials - use only highest values
-                !-------------------------------------------------------------------------------
-                IF (Ngrdpts > fs_gen_lim) THEN
-
-                    ! Find threshold value to select fs_gen_lim points
-                    !-------------------------------------------------------------------------------
-
-                    ALLOCATE(tmp1(Ngrdpts))
-                    tmp1(1:Ngrdpts) = PACK(RelPot(ifps:ifpe,jfps:jfpe), &
-                                mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot))
-
-                    ! Find a limit value that yields an array size close to fs_gen_lim
-                    LimPot = order_val(tmp1, ORD=fs_gen_lim)
-                    !maxpot = MAXVAL(tmp1)
-                    DEALLOCATE(tmp1)
-
-                    ! WRITE (msg,'(3(i8,1x), 2(f14.8,1x))') Ngrdpts, COUNT(RelPot > LimPot), SIZE(tmp1), LimPot, maxpot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Lim, LimP, max: '//msg)
-
-                    ! Find the median rank among remaining points
-                    !-------------------------------------------------------------------------------
-
-                    ALLOCATE(tmp1(COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)))
-                    tmp1 = PACK(RelPot(ifps:ifpe,jfps:jfpe), &
-                                mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot))
-
-                    MeanPot = order_val(tmp1, ORD=INT(REAL(SIZE(tmp1))/2.0))
-                    !maxpot = MAXVAL(tmp1)
-                    DEALLOCATE(tmp1)
-
-                    ! WRITE (msg,'(4(i8,1x), 3(f14.8,1x))') Ngrdpts, &
-                    !     COUNT(RelPot > MeanPot), SIZE(tmp1), INT(REAL(SIZE(tmp1))/2.0), &
-                    !     MeanPot, MINVAL(tmp1), maxpot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Mean, MPot, min, max: '//msg)
-
-                    Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
-
-                !-------------------------------------------------------------------------------
-                    
-                ELSEIF (Ngrdpts > 0) THEN
-
-                    ! Find the median rank among points
-                    !-------------------------------------------------------------------------------
-                    MeanPot = order_val(PACK(RelPot(ifps:ifpe,jfps:jfpe), &
-                                      mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)), &
-                                      ORD=INT(dp05*Ngrdpts))
-
-                    ! WRITE (msg,'(2(i8,1x), 2(f14.8,1x))') Ngrdpts, COUNT(RelPot > MeanPot), MeanPot, LimPot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Mean, MPot, LimP: '//msg)
-
-                ENDIF
-
-                ! Prepare for MPI
-                !-------------------------------------------------------------------------------
-
-                IF (Ngrdpts == 0) firepts = 0
-
-                !-------------------------------------------------------------------------------
-
-            ENDIF ! (firepts > 0)
-            !-------------------------------------------------------------------------------
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF (.NOT. (IamMaster)) THEN
-
-                ! nbr > 0 indicates there's fire on tile and RelPot > 0, not the array size to receive in next mpi comm
-                ! if nbr > 0, next array will be one (array: MeanPot) 
-                CALL fs_mpi_sendbuff1_int(sendto=MasterId, nbr=Ngrdpts) 
-
-                IF (Ngrdpts > 0) THEN
-                    CALL fs_mpi_sendbuff1_real(sendto=MasterId, nbr=MeanPot) 
-                    ! WRITE (msg,'(1(i6,1x), (f14.6,1x))') Ngrdpts, MeanPot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel mpi_send Npts,Meanpot: '//msg)
-                ENDIF
-            ENDIF
-#endif
-
-            !===============================================================================
-            ! Firebrand Generation - Release Firebrands - Part 2
-            !===============================================================================
-
-            !-------------------------------------------------------------------------------
-            ! MPI Master: Calculate Release Field (fire gridpt cnt by fuel category)
-            !-------------------------------------------------------------------------------
-
-            IF (IamMaster) THEN                      
-
-                CALL wrf_debug (wrfdbg, 'SPFire_rel_master --------------------------------------------------- ')                    
-                !-------------------------------------------------------------------------------
-                ! Declare arrays to receive data
-
-                Npts_total = 0
-                PotThr = ZERO_dp 
-                TotPot = ZERO_dp
-                rel_ratio = ZERO_dp
-                cdf_coeff = ZERO_dp
-
-                
-                ALLOCATE(np_Ngrdpts(ntiles)) ! Number of fuel cat actively burning in each mpiproc
-                ALLOCATE(np_MeanPot(ntiles)) 
-                np_MeanPot(:) = ZERO_dp
-                np_Ngrdpts(:) = 0
-
-                np_Ngrdpts(1) = Ngrdpts ! Array index for Master is 1
-                np_MeanPot(1) = MeanPot
-
-                !-------------------------------------------------------------------------------
-                ! Receive release potential data from procs
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-
-                DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
-                    np_Ngrdpts(kk) = fs_mpi_recvbuff1_int(fromid=kk-1)  ! Comm receive: Number of pts with RelPot>0
-
-                    IF (np_Ngrdpts(kk) > 0) THEN 
-                        np_MeanPot(kk) = fs_mpi_recvbuff1_real(fromid=kk-1)
-                        ! WRITE(msg, '(3(i8,1x), 2(f14.6,1x))') my_id, kk-1, np_Ngrdpts(kk), np_Meanpot(kk), TotPot
-                        ! CALL wrf_debug (wrfdbg, 'SPFire_rel master proc Ngrdpts, MeanPot, TotPot: '//msg)
-                    ENDIF
-                ENDDO
-#endif
-
-                DO kk=1, ntiles ! at least 1 for serial compile 
-                   TotPot = np_MeanPot(kk) * REAL(np_Ngrdpts(kk)) + TotPot 
-                ENDDO
-
-                !-------------------------------------------------------------------------------
-                ! Communicate release sources between Master and procs
-
-                Npts_total = SUM( np_Ngrdpts )
-                IF ( Npts_total > 0) THEN 
-
-                    TotPot = TotPot/(REAL(Npts_total))
-
-                    !-------------------------------------------------------------------------------
-                    ! Calculate potential threshold for grid pts
-
-                    ! All elements fit in the array
-                    IF (Npts_total <= fs_gen_lim) THEN
-                        PotThr = ZERO_dp 
-
-                    ! Estimate threshold with a linear regression 
-                    ELSE ! IF (Npts_total > fs_gen_lim) 
-                        rel_ratio = REAL(fs_gen_lim)/(REAL(Npts_total))
-                        cdf_coeff = (dp1 - rel_ratio)/rel_ratio
-                        PotThr = cdf_coeff * TotPot
-                    ENDIF
-
-                    ! WRITE(msg, '(2(i8,1x), 4(f12.6,1x))') fs_gen_lim, Npts_total, PotThr, rel_ratio, cdf_coeff, TotPot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_master max, Npts, PotThr: '//msg)
-
-                    !-------------------------------------------------------------------------------
-                    ! Send dat to procs
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-
-                    DO kk=2, mpiprocs ! kk=1 is Master
-                        IF (np_Ngrdpts(kk) > 0) THEN
-                            CALL fs_mpi_sendbuff1_real(sendto=kk-1, nbr=PotThr)
-                            ! WRITE(msg, '(1(i8,1x), 1(f12.6,1x))') kk-1, PotThr
-                            ! CALL wrf_debug (wrfdbg, 'SPFire_rel_master mpi_send PotThr: '//msg)
-                        ENDIF
-                    ENDDO
-#endif
-                ENDIF ! npts_total > 0
-                !-------------------------------------------------------------------------------
-
-            ENDIF ! IamMaster 
-
-            !-------------------------------------------------------------------------------
-
-            !===============================================================================
-            ! Firebrand Generation - Release Firebrands - Part 3
-            !===============================================================================
-
-            IF (Ngrdpts > 0) THEN
-
-                !-------------------------------------------------------------------------------
-                ! Receive Potential Threshold from Master 
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                IF (.NOT.(IamMaster)) THEN
-                    PotThr = ZERO_dp 
-                    PotThr = fs_mpi_recvbuff1_real(fromid=MasterId) 
-                    ! WRITE(msg, '((i4,1x), (f14.6,1x))')  my_id, PotThr
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel receive potential threshold: '//msg)
-                ENDIF
-#endif
-
-                !------------------------------------------------------------------------------- 
-                ! Assign release from the various fuel cat to corresponding gridpts
-
-                !CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts>0 --------------------------------------------- ') 
-
-                ALLOCATE(n_rel_fr2d(ifps:ifpe, jfps:jfpe))
-                n_rel_fr2d(ifps:ifpe, jfps:jfpe) = 0
-
-                IF (PotThr > ZERO_dp) &
-                    n_rel_fr2d(ifps:ifpe,jfps:jfpe) = n_rel_fr2d(ifps:ifpe,jfps:jfpe)  + &
-                                                      UNPACK(SPREAD(1, DIM=1, NCOPIES=Ngrdpts), &
-                                                                    mask=(RelPot(ifps:ifpe,jfps:jfpe) >= PotThr), FIELD=0)
-
-                IF (PotThr == ZERO_dp) &
-                    n_rel_fr2d(ifps:ifpe,jfps:jfpe) = n_rel_fr2d(ifps:ifpe,jfps:jfpe)  + &
-                                                      UNPACK(SPREAD(1, DIM=1, NCOPIES=Ngrdpts), &
-                                                                    mask=(fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) > ZERO_dp), FIELD=0)
-
-                !------------------------------------------------------------------------------- 
-                ! update relpts to represent value assigned to gridpts 
-
-                relpts = COUNT(n_rel_fr2d(ifps:ifpe,jfps:jfpe)>0) ! Limits to 1 release per refined gridpt, at various heights 
+            if ( my_id == 1) then
+               relpts = 3
 
                 WRITE(msg, '(1(i8,1x))') relpts
                 CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts: '//msg)
@@ -2077,19 +1817,24 @@ END FUNCTION order_val
                 release_n(:)  = 0
 
                 ! Does not allow more than one release from the same refined gridpt
-                CALL releaseijk2atm(nij_2d=n_rel_fr2d(ifps:ifpe,jfps:jfpe), &
-                                    fcat=fcat_fr(ifps:ifpe,jfps:jfpe), &
-                                    maxhgt_usr = firebrand_gen_maxhgt, &
-                                    sr_x=grid%sr_x, sr_y=grid%sr_y, &
-                                    pi=release_i(1:relpts), &
-                                    pj=release_j(1:relpts), &
-                                    pk=release_k(1:relpts), & ! max height
-                                    nij=release_n)
+                ! CALL releaseijk2atm(nij_2d=n_rel_fr2d(ifps:ifpe,jfps:jfpe), &
+                !                     fcat=fcat_fr(ifps:ifpe,jfps:jfpe), &
+                !                     maxhgt_usr = firebrand_gen_maxhgt, &
+                !                     sr_x=grid%sr_x, sr_y=grid%sr_y, &
+                !                     pi=release_i(1:relpts), &
+                !                     pj=release_j(1:relpts), &
+                !                     pk=release_k(1:relpts), & ! max height
+                !                     nij=release_n)
+                if (my_id == 1) then
+                   release_i(1:relpts) = ([2, 10, 20])
+                   release_j(1:relpts) = ([2, 10, 20])
+                   release_k(1:relpts) = firebrand_gen_maxhgt
+                endif
 
 
-                ! Adjust position to corresponding refined grid center
-                release_i(1:relpts) = release_i(1:relpts) + dp05/grid%sr_x
-                release_j(1:relpts) = release_j(1:relpts) + dp05/grid%sr_y
+                ! ! Adjust position to corresponding refined grid center
+                ! release_i(1:relpts) = release_i(1:relpts) + dp05/grid%sr_x
+                ! release_j(1:relpts) = release_j(1:relpts) + dp05/grid%sr_y
 
                 DO kk=1,relpts
 
