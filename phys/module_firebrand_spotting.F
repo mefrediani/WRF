@@ -1789,16 +1789,17 @@ END FUNCTION order_val
 
         IF (fs_last_gen_dt >= fs_gen_dt) THEN  
 
-            firepts = COUNT(fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) > ZERO_dp)
+            firepts = 0
             Ngrdpts = 0 ! Number of active fire points of valid fuel categories
 
             ! !===============================================================================
             ! ! Firebrand Generation - Release Firebrands - Part 3
             ! !===============================================================================
 
-
+            relpts = 0
             if ( my_id == 1) then
-               relpts = 3
+
+                relpts = 3
 
                 WRITE(msg, '(1(i8,1x))') relpts
                 CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts: '//msg)
@@ -1825,16 +1826,14 @@ END FUNCTION order_val
                 !                     pj=release_j(1:relpts), &
                 !                     pk=release_k(1:relpts), & ! max height
                 !                     nij=release_n)
-                if (my_id == 1) then
-                   release_i(1:relpts) = ([2, 10, 20])
-                   release_j(1:relpts) = ([2, 10, 20])
-                   release_k(1:relpts) = firebrand_gen_maxhgt
-                endif
-
 
                 ! ! Adjust position to corresponding refined grid center
                 ! release_i(1:relpts) = release_i(1:relpts) + dp05/grid%sr_x
                 ! release_j(1:relpts) = release_j(1:relpts) + dp05/grid%sr_y
+
+                release_i(1:relpts) = ([30, 35, 40])
+                release_j(1:relpts) = ([15, 20, 25])
+                release_k(1:relpts) = firebrand_gen_maxhgt
 
                 DO kk=1,relpts
 
@@ -2251,6 +2250,7 @@ END FUNCTION order_val
             fs_p_y  = PACK(fs_p_y,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_z  = PACK(fs_p_z,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_id = PACK(fs_p_id, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
+            fs_p_src = PACK(fs_p_src, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
             fs_p_dt = PACK(fs_p_dt, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
             fs_p_mass  = PACK(fs_p_mass , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_diam  = PACK(fs_p_diam , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
@@ -2633,7 +2633,7 @@ END FUNCTION order_val
             !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER2  >>> '// msg)
             ! ENDDO
 
-            DEALLOCATE(r_x, r_y, r_z, r_id, r_dt)
+            DEALLOCATE(r_x, r_y, r_z, r_id, r_src, r_dt)
             !DEALLOCATE(release_mpi_ijk)
             DEALLOCATE(fb_mdetv)
             DEALLOCATE(r_p_m, r_p_d, r_p_e, r_p_t, r_p_v)
