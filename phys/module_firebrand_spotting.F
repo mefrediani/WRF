@@ -1887,6 +1887,23 @@ END FUNCTION order_val
                     release_k = release_k, &
                     active_br = active_br)
 
+                !-------------------------------------------------------------------------------
+                ! Track released firebrands
+                !-------------------------------------------------------------------------------
+                
+                WRITE (msg,'(i8)') active_br
+                CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
+
+                DO kk=prior_br,active_br
+                   WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
+                        kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
+                        fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
+                        fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
+                        fs_p_temp(kk), fs_p_tvel(kk)
+                   CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
+                ENDDO
+                !-------------------------------------------------------------------------------
+
                 IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
             ENDIF ! Ngrdpts > 0                                    
@@ -1939,17 +1956,6 @@ END FUNCTION order_val
 
         IF (active_br > 0) THEN 
 
-            WRITE (msg,'(i8)') active_br
-            CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
-
-            DO kk=1,active_br
-               WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
-                      kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
-                      fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
-                      fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
-                      fs_p_temp(kk), fs_p_tvel(kk)
-               CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
-            ENDDO
             !-------------------------------------------------------------------------------
             ! Fetch wrf variables for advection
             !-------------------------------------------------------------------------------
@@ -2102,6 +2108,22 @@ END FUNCTION order_val
             ! Transport done :)
             !=============================================================
 
+           !-------------------------------------------------------------------------------
+           ! Track firebrands
+           !-------------------------------------------------------------------------------
+
+            WRITE (msg,'(i8)') active_br
+            CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
+
+            DO kk=1,active_br
+               WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
+                      kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
+                      fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
+                      fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
+                      fs_p_temp(kk), fs_p_tvel(kk)
+               CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
+            ENDDO
+            !-------------------------------------------------------------------------------
 
             !===============================================================================
             ! Remove particles
@@ -2120,7 +2142,7 @@ END FUNCTION order_val
             !===============================================================================
             ! Remove particles - from burnout or out of domain
             !===============================================================================
-
+            nresets = 0
             CALL remove_br(& !active_br= active_br, &
                            fs_p_id    = fs_p_id,     &
                            fs_p_x     = fs_p_x,      &
@@ -2135,7 +2157,7 @@ END FUNCTION order_val
             CALL wrf_debug (wrfdbg, 'SPFire_driver remove br: '//msg)
 
 
-            !===============================================================================            
+            !=============================================================================== 
             ! Spotfires: Deposited Brands
             !===============================================================================
 
@@ -2228,7 +2250,7 @@ END FUNCTION order_val
 #endif
             !-------------------------------------------------------------------------------
             ! Reset
-            !-------------------------------------------------------------------------------                
+            !------------------------------------------------------------------------------- 
             ! CALL wrf_debug (wrfdbg, 'SPFire_driver reset particles sent away')
 
             ! In serial compilation, firebrands outside the domain limits will be removed
@@ -2566,13 +2588,14 @@ END FUNCTION order_val
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
 
         ALLOCATE(nbr_id(neighbors))
+        nbr_id(:)=0
         nbr_id(:)=fs_mpi_checkreceive(task_list=task_id, np=neighbors)
 
         nbr_sum = SUM(nbr_id)
         IF (nbr_sum > 0) THEN 
 
             WRITE (msg,'(16(i4,1x))') ([task_id(ii), nbr_id(ii)], ii=1,neighbors)
-            CALL wrf_debug (wrfdbg,  'SPFire_driver mpi_check_receive: '//msg)
+            CALL wrf_debug (wrfdbg,  'SPFire_driver mpi_check_receive (taskID, N): '//msg)
 
             ! Receiving positions, id, dt
             ALLOCATE(r_x(nbr_sum), r_y(nbr_sum), r_z(nbr_sum), r_id(nbr_sum), r_src(nbr_sum), r_dt(nbr_sum))

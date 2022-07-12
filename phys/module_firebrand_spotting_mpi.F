@@ -333,8 +333,8 @@ CONTAINS
 
                 IF (nbr > 0) THEN
 
-                    ! WRITE (msg,'(2(i6,1x))') sendto, nbr
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_mpi_sendaway sendto_id nbr:  '//msg)
+                    WRITE (msg,'(2(i6,1x))') sendto, nbr
+                    CALL wrf_debug (wrfdbg, 'SPFire_mpi_sendaway sendto_id nbr:  '//msg)
 
                     ALLOCATE(p_real(nreal*nbr), p_int(nint*nbr)) 
                     
@@ -354,10 +354,10 @@ CONTAINS
                     CALL fs_mpi_sendbuff_real(sendto=sendto, bsz=nbr*nreal, buff=p_real)
                     CALL fs_mpi_sendbuff_int(sendto=sendto, bsz=nbr*nint, buff=p_int)
 
-                    ! DO k=1,MIN(nbr,5)
-                    !     WRITE(msg,'(3(i6,1x),6(f12.6,1x))') sendto, p_int(k), p_int(k+nbr), p_real(k), p_real(k+nbr), p_real(k+2*nbr), p_real(k+4*nbr), p_real(k+6*nbr), p_real(k+7*nbr)
-                    !     CALL wrf_debug (wrfdbg, 'SPFire_mpi send  >>> '// msg)
-                    ! ENDDO
+                    DO k=1,MIN(nbr,5)
+                        WRITE(msg,'(3(i6,1x),6(f12.6,1x))') sendto, p_int(k), p_int(k+nbr), p_real(k), p_real(k+nbr), p_real(k+2*nbr), p_real(k+4*nbr), p_real(k+6*nbr), p_real(k+7*nbr)
+                        CALL wrf_debug (wrfdbg, 'SPFire_mpi send  >>> '// msg)
+                    ENDDO
 
 
                     DEALLOCATE(p_real, p_int) 
