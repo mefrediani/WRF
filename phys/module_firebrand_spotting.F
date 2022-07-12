@@ -2506,6 +2506,7 @@ END FUNCTION order_val
             fs_p_y  = PACK(fs_p_y,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_z  = PACK(fs_p_z,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_id = PACK(fs_p_id, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
+            fs_p_src = PACK(fs_p_src, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
             fs_p_dt = PACK(fs_p_dt, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
             fs_p_mass  = PACK(fs_p_mass , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_diam  = PACK(fs_p_diam , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
@@ -2888,7 +2889,7 @@ END FUNCTION order_val
             !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER2  >>> '// msg)
             ! ENDDO
 
-            DEALLOCATE(r_x, r_y, r_z, r_id, r_dt)
+            DEALLOCATE(r_x, r_y, r_z, r_id, r_src, r_dt)
             !DEALLOCATE(release_mpi_ijk)
             DEALLOCATE(fb_mdetv)
             DEALLOCATE(r_p_m, r_p_d, r_p_e, r_p_t, r_p_v)
