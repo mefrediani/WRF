@@ -1894,7 +1894,7 @@ END FUNCTION order_val
                 WRITE (msg,'(i8)') active_br
                 CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
 
-                DO kk=prior_br,active_br
+                DO kk=prior_br+1,active_br
                    WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
                         kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
                         fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
@@ -2112,8 +2112,8 @@ END FUNCTION order_val
            ! Track firebrands
            !-------------------------------------------------------------------------------
 
-            WRITE (msg,'(i8)') active_br
-            CALL wrf_debug (0, 'SPFire_driver: Active brands: '// msg )
+            WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
+            CALL wrf_debug (0, 'SPFire_driver: Active brands, id>0: '// msg )
 
             DO kk=1,active_br
                WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
@@ -2156,6 +2156,9 @@ END FUNCTION order_val
             WRITE (msg,'(i12)') nresets
             CALL wrf_debug (wrfdbg, 'SPFire_driver remove br: '//msg)
 
+            WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
+            CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands, id>0: '// msg )
+
 
             !=============================================================================== 
             ! Spotfires: Deposited Brands
@@ -2175,6 +2178,9 @@ END FUNCTION order_val
             fs_count_landed_hist(is:ie, js:je) = fs_count_landed_hist(is:ie, js:je) + dt_sum_landed(is:ie, js:je)
             WRITE (msg,'(i12)') COUNT(dt_sum_landed(is:ie, js:je) > 0)
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
+
+            WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
+            CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands, id>0: '// msg )
 
 
             !=============================================================================== 
@@ -2599,7 +2605,12 @@ END FUNCTION order_val
 
             ! Receiving positions, id, dt
             ALLOCATE(r_x(nbr_sum), r_y(nbr_sum), r_z(nbr_sum), r_id(nbr_sum), r_src(nbr_sum), r_dt(nbr_sum))
-            !ALLOCATE(release_mpi_ijk(nbr_sum,3))
+            r_id(:) = 0
+            r_src(:) = 0
+            r_dt(:) = 0
+            r_x(:) = ZERO_dp
+            r_y(:) = ZERO_dp
+            r_z(:) = ZERO_dp
 
             ! Receiving p_propertieserties
             ALLOCATE(r_p_m(nbr_sum), r_p_d(nbr_sum), r_p_e(nbr_sum), r_p_t(nbr_sum), r_p_v(nbr_sum))
@@ -2615,13 +2626,12 @@ END FUNCTION order_val
                                    r_p_v=r_p_v)
 
             ! Assign values to array and release incoming particles
-            !release_mpi_ijk = RESHAPE([r_x,r_y,r_z], [nbr_sum,3])
             fb_mdetv  = [(p_properties(r_p_m(kk), r_p_d(kk), r_p_e(kk), r_p_t(kk), r_p_v(kk)), kk=1,nbr_sum)]
 
-            ! DO kk=1,MIN(nbr_sum,5)
-            !     WRITE(msg,'(6(f12.6,1x))') (release_mpi_ijk(kk,ii), ii=1,3), fb_mdetv(kk)%p_diam, fb_mdetv(kk)%p_temp, fb_mdetv(kk)%p_tvel
-            !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER  >>> '// msg)
-            ! ENDDO
+            DO kk=1, nbr_sum
+                WRITE(msg,'(3(i6,1x),3(f12.6,1x))') r_id(kk), r_src(kk), r_dt(kk), r_x(kk), r_y(kk), r_z(kk)
+                CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER  >>> '// msg)
+            ENDDO
 
             prior_br = active_br + 1 ! Array is packed so new particles will be assgned at this position
             CALL generate_firebrands(&
