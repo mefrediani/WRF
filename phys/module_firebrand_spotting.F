@@ -2485,10 +2485,10 @@ END FUNCTION order_val
                   CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))                            
                ENDIF
 
-               IF (ndep == 0) &
+               IF (ndep == 0) THEN
                   CALL wrf_debug (wrfdbg, 'SPFire_lkhd: sending nothing to Master')
-
-                CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+                  CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+               ENDIF
 
             ENDIF
 #endif
