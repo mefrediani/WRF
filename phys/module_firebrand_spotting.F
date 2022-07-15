@@ -2213,7 +2213,7 @@ END FUNCTION order_val
             ! The mask is based on floor(fs_p_x,y) so deposits should not exist at ie or je
             fs_count_landed_all(is:ie, js:je)  = fs_count_landed_all(is:ie, js:je)  + dt_sum_landed(is:ie, js:je)
             fs_count_landed_hist(is:ie, js:je) = fs_count_landed_hist(is:ie, js:je) + dt_sum_landed(is:ie, js:je)
-            WRITE (msg,'(i12)') SUM(dt_sum_landed(is:ie, js:je))
+            WRITE (msg,'(f12.3)') SUM(dt_sum_landed(is:ie, js:je))
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
 
             WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
