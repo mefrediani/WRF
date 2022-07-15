@@ -1792,14 +1792,6 @@ END FUNCTION order_val
             firepts = 0
             Ngrdpts = 0 ! Number of active fire points of valid fuel categories
 
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF (.NOT. (IamMaster)) THEN
-                ! nbr > 0 indicates there's fire on tile and RelPot > 0, not the array size to receive in next mpi comm
-                ! if nbr > 0, next array will be one (array: MeanPot) 
-                CALL fs_mpi_sendbuff1_int(sendto=MasterId, nbr=Ngrdpts) 
-            ENDIF
-#endif
-
             !===============================================================================
             ! Firebrand Generation - Release Firebrands - Part 2
             !===============================================================================
@@ -1808,28 +1800,6 @@ END FUNCTION order_val
             ! MPI Master: Calculate Release Field (fire gridpt cnt by fuel category)
             !-------------------------------------------------------------------------------
 
-            IF (IamMaster) THEN                      
-
-                CALL wrf_debug (wrfdbg, 'SPFire_rel_master --------------------------------------------------- ')                    
-                !-------------------------------------------------------------------------------
-                ! Declare arrays to receive data
-
-                ALLOCATE(np_Ngrdpts(ntiles)) ! Number of fuel cat actively burning in each mpiproc
-                np_Ngrdpts(:) = 0
-                np_Ngrdpts(1) = Ngrdpts ! Array index for Master is 1
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-
-                DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
-                    np_Ngrdpts(kk) = fs_mpi_recvbuff1_int(fromid=kk-1)  ! Comm receive: Number of pts with RelPot>0
-
-                    IF (np_Ngrdpts(kk) > 0) THEN 
-                        WRITE(msg, '(3(i8,1x))') my_id, kk-1, np_Ngrdpts(kk)
-                        CALL wrf_debug (wrfdbg, 'SPFire_rel master proc Ngrdpts: np_Ngrdpts should be zero! '//msg)
-                    ENDIF
-                ENDDO
-#endif
-            ENDIF
 
             ! !===============================================================================
             ! ! Firebrand Generation - Release Firebrands - Part 3
@@ -1855,20 +1825,6 @@ END FUNCTION order_val
                 release_j(:)  = 0.0_dp
                 release_k(:)  = 0.0_dp
                 release_n(:)  = 0
-
-                ! Does not allow more than one release from the same refined gridpt
-                ! CALL releaseijk2atm(nij_2d=n_rel_fr2d(ifps:ifpe,jfps:jfpe), &
-                !                     fcat=fcat_fr(ifps:ifpe,jfps:jfpe), &
-                !                     maxhgt_usr = firebrand_gen_maxhgt, &
-                !                     sr_x=grid%sr_x, sr_y=grid%sr_y, &
-                !                     pi=release_i(1:relpts), &
-                !                     pj=release_j(1:relpts), &
-                !                     pk=release_k(1:relpts), & ! max height
-                !                     nij=release_n)
-
-                ! ! Adjust position to corresponding refined grid center
-                ! release_i(1:relpts) = release_i(1:relpts) + dp05/grid%sr_x
-                ! release_j(1:relpts) = release_j(1:relpts) + dp05/grid%sr_y
 
                 release_i(1:relpts) = ([30, 35, 40])
                 release_j(1:relpts) = ([15, 20, 25])
@@ -2395,12 +2351,14 @@ END FUNCTION order_val
             WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
             CALL wrf_debug (wrfdbg, 'SPFire_lkhd: deposit points, fire points: '//msg)
 
-            IF (ndep > 0) THEN
+            IF (ndep > 0) THEN ! deposited anywhere
 
                 landing_mask(ims:ime, jms:jme) = .FALSE. 
                 landing_mask(is:ie, js:je) = ((fs_count_landed_hist(is:ie, js:je) > 0) .AND. &
                                               (fs_fire_area(is:ie, js:je) == ZERO_dp) )                       
                 ndep = COUNT(landing_mask) 
+
+                ! deposited on nonburning gridpt
                 fs_landing_mask(is:ie, js:je) = UNPACK(SPREAD(1,DIM=1,NCOPIES=ndep), MASK=landing_mask(is:ie, js:je), FIELD=0)
 
                 WRITE(msg, '(3(i8,1x))') COUNT(fs_count_landed_hist(is:ie, js:je) > ZERO_dp), &
@@ -2417,197 +2375,7 @@ END FUNCTION order_val
                 ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd deposits, non fire-point deposits, fire-point deposits: '//msg)
                 DEALLOCATE(tmp1)
 
-                ! Were these firebrand deposited outside the fire area?
-                !-------------------------------------------------------------------------------
-
-                IF (ndep > 0) THEN 
-
-                    ! Calculate fuel risk 
-                    !-------------------------------------------------------------------------------
-
-                    ALLOCATE(fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe), &!fs_fuel_spotting_risk(ims:ime,jms:jme), &
-                             spotthreat_fr(ifps:ifpe,jfps:jfpe))
-                    fuel_spotting_risk_fr(:,:) = ZERO_dp
-                    fs_fuel_spotting_risk(:,:) = ZERO_dp
-                    spotthreat_fr(:,:) = ZERO_dp
-
-                    IF (.NOT. ALLOCATED(fcat_fr)) THEN 
-                        ALLOCATE(fcat_fr(ifps:ifpe,jfps:jfpe))
-                        fcat_fr(:,:) = ZERO_dp                    
-                        fcat_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(&
-                                                       get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
-                                                                    cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe)), &
-                                                       SHAPE(fuel_spotting_risk_fr))
-                    ENDIF
-                    !WRITE(msg, *) MAXVAL(fcat_fr), MINVAL(fcat_fr)
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd fcat max,min       '//msg)
-
-                    spotthreat_fr(ifps:ifpe,jfps:jfpe)= spotting_threat_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE(SHAPE(fuel_spotting_risk_fr))                  
-                                                             ! get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
-                                                             !     cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe))), & 
-                    ! WRITE(msg, *) MAXVAL(spotthreat_fr), MINVAL(spotthreat_fr)
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd spotting_threat_factor max,min'//msg)
-
-                    fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(&
-                                                        fuel_spotting_risk(&
-                                                             fuel_fgi=grid%fgip(ifps:ifpe,jfps:jfpe), &
-                                                             fuel_mcg=fmcg_2df(ifps:ifpe,jfps:jfpe), & 
-                                                             !fuel_mcg=grid%fmcg2df(ifps:ifpe,jfps:jfpe), & 
-                                                             factor=spotthreat_fr(ifps:ifpe,jfps:jfpe)), &
-                                                             SHAPE(fuel_spotting_risk_fr)) !, fuel_mcg=grid%fmcg2df)
-
-                    fs_fuel_spotting_risk(is:ie,js:je) = fire2tile(fr_arr=fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe), &
-                                                         dsx=grid%sr_x,dsy=grid%sr_y)
-                    DEALLOCATE(fcat_fr)
-
-                    !-------------------------------------------------------------------------------
-
-
-                    ! Prepare for MPI
-                    !-------------------------------------------------------------------------------
-
-                    ALLOCATE(landing_cnt(ndep), landed_risk(ndep), recv_spot_lkhd(ndep), recv_frac_landed(ndep))
-                    landing_cnt = PACK(fs_count_landed_hist(is:ie,js:je), landing_mask(is:ie,js:je))
-                    landed_risk = PACK(fs_fuel_spotting_risk(is:ie,js:je), landing_mask(is:ie,js:je))
-
-                ENDIF ! (fs_count_landed_hist > 0 .AND. fire_area == 0)
             ENDIF ! SUM(fs_count_landed_hist) > 0
-
-            !-------------------------------------------------------------------------------
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF (.NOT. (IamMaster)) THEN
-
-               IF (ndep > 0) THEN
-                  CALL wrf_debug (wrfdbg, 'SPFire_lkhd: sending size,int,real to Master')
-
-                  CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=ndep) ! Comm send >0: BuffSz
-                  CALL fs_mpi_sendbuff_int(sendto=MasterId, bsz=ndep, buff=landing_cnt(1:ndep))
-                  CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))                            
-               ENDIF
-
-               IF (ndep == 0) THEN
-                  CALL wrf_debug (wrfdbg, 'SPFire_lkhd: sending nothing to Master')
-                  CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
-               ENDIF
-
-            ENDIF
-#endif
-            !-------------------------------------------------------------------------------
-            ! Master: Calculate Likelihood Field
-            !-------------------------------------------------------------------------------
-
-            IF (IamMaster) THEN 
-
-                !-------------------------------------------------------------------------------
-                ! Declare arrays to receive data
-
-                ALLOCATE(np_nlanded(ntiles)) 
-                np_nlanded(:) = 0
-                np_nlanded(1) = ndep ! Array index for Master is 1
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
-                    np_nlanded(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
-                    WRITE(msg, '(2(i8,1x))') kk,np_nlanded(kk)
-                    CALL wrf_debug (wrfdbg, 'SPFire_lkhd receiving proc,deposit: '//msg)
-                ENDDO
-#endif
-                !-------------------------------------------------------------------------------
-                ! Communicate deposits between Master and procs
-
-                ndep_total = SUM(np_nlanded)
-
-                IF ( ndep_total > 0) THEN 
-                    ALLOCATE(np_landed_cnt(ndep_total), np_landed_risk(ndep_total))
-                    IF (ndep > 0) THEN
-                        np_landed_cnt(1:ndep) = landing_cnt
-                        np_landed_risk(1:ndep)= landed_risk
-                    ELSE 
-                        np_landed_cnt(1) = ZERO_dp ! I don't think I need this 
-                        np_landed_risk(1)= ZERO_dp
-                    ENDIF
-
-                    !-------------------------------------------------------------------------------
-                    ! Receive deposit data from procs
-
-                    kk1 = ndep + 1 ! index start after master's 
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                    DO kk=2, mpiprocs ! kk=1 is Master
-
-                        IF (np_nlanded(kk) > 0) THEN 
-
-                            kk2 = kk1 + np_nlanded(kk) -1                
-
-                            ! WRITE(msg, '(4(i8,1x))') kk, np_nlanded(kk), kk1, kk2
-                            ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd master kk, np_dep, k1:k2: '//msg)
-                            np_landed_cnt(kk1:kk2) = fs_mpi_recvfrompatch_int(bsz=np_nlanded(kk), fromid=kk-1) 
-                            np_landed_risk(kk1:kk2)= fs_mpi_recvfrompatch_real(bsz=np_nlanded(kk), fromid=kk-1)
-                            kk1 = kk1 + np_nlanded(kk)
-                        ENDIF
-                    ENDDO
-#endif
-
-                    !-------------------------------------------------------------------------------
-                    ! Calculate ratio and lkhd 
-
-                    ALLOCATE(np_frac_landed(ndep_total), np_lkhd(ndep_total))
-                    np_frac_landed(:) = ZERO_dp
-                    np_lkhd(:) = ZERO_dp
-
-                    np_frac_landed(1:ndep_total) = REAL(np_landed_cnt(1:ndep_total))/REAL(SUM(np_landed_cnt))
-                    np_lkhd(1:ndep_total) = np_frac_landed(1:ndep_total) * np_landed_risk(1:ndep_total)
-                    np_lkhd(1:ndep_total) = np_lkhd(1:ndep_total)/MAXVAL(np_lkhd)
-
-                    ! DO pp=1,SIZE(np_landed_cnt)
-                    !     WRITE(msg, '(3(i8,1x),4(f12.6,1x))') pp, np_landed_cnt(pp), SUM(np_landed_cnt), np_landed_risk(pp), np_frac_landed(pp), MAXVAL(np_lkhd), np_lkhd(pp)
-                    !     CALL wrf_debug (wrfdbg, 'SPFire_lkhd master np_frac_landed, np_lkhd, : '//msg)
-                    ! ENDDO
-
-                    !-------------------------------------------------------------------------------
-                    ! Send dat to procs
-
-                    kk1 = ndep + 1 ! index start after master's 
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                    DO kk=2, mpiprocs ! kk=1 is Master
-
-                        IF (np_nlanded(kk) > 0) THEN 
-
-                            kk2 = kk1 + np_nlanded(kk) -1                
-
-                            CALL fs_mpi_sendbuff_real(sendto=kk-1, bsz=np_nlanded(kk), buff=np_frac_landed(kk1:kk2))
-                            CALL fs_mpi_sendbuff_real(sendto=kk-1, bsz=np_nlanded(kk), buff=np_lkhd(kk1:kk2))
-
-                            kk1 = kk1 + np_nlanded(kk)
-                        ENDIF
-                    ENDDO
-#endif
-                ENDIF ! SUM(np_nlanded) > 0
-                !-------------------------------------------------------------------------------
-
-            ENDIF ! IamMaster 
-
-            !-------------------------------------------------------------------------------
-
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF (.NOT.(IamMaster) .AND. (ndep > 0)) THEN
-
-                recv_frac_landed = fs_mpi_recvfrompatch_real(bsz=ndep, fromid=MasterId) 
-                fs_frac_landed(is:ie,js:je) = UNPACK(recv_frac_landed, MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
-
-                recv_spot_lkhd = fs_mpi_recvfrompatch_real(bsz=ndep, fromid=MasterId) 
-                fs_spotting_lkhd(is:ie,js:je) = UNPACK(recv_spot_lkhd, MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
-
-            ENDIF
-#endif
-
-            IF ((IamMaster) .AND. (ndep > 0)) THEN
-
-                fs_frac_landed(is:ie,js:je) = UNPACK(np_frac_landed(1:ndep), MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
-                fs_spotting_lkhd(is:ie,js:je) = UNPACK(np_lkhd(1:ndep), MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
-
-            ENDIF
 
         ENDIF ! hist_flag
 
