@@ -2213,7 +2213,7 @@ END FUNCTION order_val
             ! The mask is based on floor(fs_p_x,y) so deposits should not exist at ie or je
             fs_count_landed_all(is:ie, js:je)  = fs_count_landed_all(is:ie, js:je)  + dt_sum_landed(is:ie, js:je)
             fs_count_landed_hist(is:ie, js:je) = fs_count_landed_hist(is:ie, js:je) + dt_sum_landed(is:ie, js:je)
-            WRITE (msg,'(i12)') COUNT(dt_sum_landed(is:ie, js:je) > 0)
+            WRITE (msg,'(i12)') SUM(dt_sum_landed(is:ie, js:je) > 0)
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
 
             WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
@@ -2393,18 +2393,20 @@ END FUNCTION order_val
                                                    dsx=grid%sr_x,dsy=grid%sr_y)
 
             WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
-            CALL wrf_debug (wrfdbg, 'SPFire_lkhd: Spotfire Likelihood, deposit points: '//msg)
+            CALL wrf_debug (wrfdbg, 'SPFire_lkhd: deposit points, fire points: '//msg)
 
             IF (ndep > 0) THEN
 
                 landing_mask(ims:ime, jms:jme) = .FALSE. 
                 landing_mask(is:ie, js:je) = ((fs_count_landed_hist(is:ie, js:je) > 0) .AND. &
-                                          (fs_fire_area(is:ie, js:je) == ZERO_dp) )                       
+                                              (fs_fire_area(is:ie, js:je) == ZERO_dp) )                       
                 ndep = COUNT(landing_mask) 
                 fs_landing_mask(is:ie, js:je) = UNPACK(SPREAD(1,DIM=1,NCOPIES=ndep), MASK=landing_mask(is:ie, js:je), FIELD=0)
 
-                ! WRITE(msg, '(4(i8,1x))') COUNT(fs_count_landed_hist > ZERO_dp), ndep, COUNT(fs_landing_mask == 1), COUNT((fs_count_landed_hist > ZERO_dp).AND.(fs_fire_area > ZERO_dp))
-                ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd deposits, non fire-point deposits, fire-point deposits: '//msg)
+                WRITE(msg, '(3(i8,1x))') COUNT(fs_count_landed_hist(is:ie, js:je) > ZERO_dp), &
+                                         ndep, &
+                                         COUNT((fs_count_landed_hist(is:ie, js:je) > ZERO_dp).AND.(fs_fire_area(is:ie, js:je) > ZERO_dp))
+                CALL wrf_debug (wrfdbg, 'SPFire_lkhd deposits, non fire-point deposits, fire-point deposits: '//msg)
 
                 ALLOCATE(tmp1(ndep))
                 tmp1 = PACK(fs_count_landed_hist(is:ie, js:je), landing_mask(is:ie, js:je)) ! WHERE doest work on memory bounds
@@ -2476,12 +2478,16 @@ END FUNCTION order_val
             IF (.NOT. (IamMaster)) THEN
 
                IF (ndep > 0) THEN
+                  CALL wrf_debug (wrfdbg, 'SPFire_lkhd: sending size,int,real to Master')
+
                   CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=ndep) ! Comm send >0: BuffSz
                   CALL fs_mpi_sendbuff_int(sendto=MasterId, bsz=ndep, buff=landing_cnt(1:ndep))
                   CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))                            
                ENDIF
 
                IF (ndep == 0) &
+                  CALL wrf_debug (wrfdbg, 'SPFire_lkhd: sending nothing to Master')
+
                 CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
 
             ENDIF
@@ -2502,8 +2508,8 @@ END FUNCTION order_val
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
                 DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
                     np_nlanded(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
-                    ! WRITE(msg, '(2(i8,1x))') kk,np_nlanded(kk)
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd proc deposit: '//msg)
+                    WRITE(msg, '(2(i8,1x))') kk,np_nlanded(kk)
+                    CALL wrf_debug (wrfdbg, 'SPFire_lkhd receiving proc,deposit: '//msg)
                 ENDDO
 #endif
                 !-------------------------------------------------------------------------------
@@ -2787,7 +2793,7 @@ END FUNCTION order_val
         REAL    :: xp_m2, yp_m2, zp_m2, xp2, yp2, zp2
         REAL    :: zp, wp, brz
         REAL    :: loc_p, loc_t, loc_d ! local met properties
-        CHARACTER (LEN=100), INTENT(OUT) :: msg
+        CHARACTER (LEN=200), INTENT(OUT) :: msg
 
         WRITE(msg, '(a100)') ' ' 
     !-------------------------------------------------------------------------------
@@ -3378,8 +3384,7 @@ END SUBROUTINE remove_br
 
 
 !=============================================================
-!PURE 
-SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
+PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
 !=============================================================
 
     IMPLICIT NONE
@@ -3415,8 +3420,8 @@ SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
                    (FLOOR(fs_p_y) >= js) .OR. &
                    (FLOOR(fs_p_y) <= je))
 
-    WRITE (msg,'(i6)') COUNT(bounds_mask)
-    CALL wrf_debug (wrfdbg, 'SPFire_deposit within bounds: '//msg)
+    ! WRITE (msg,'(i6)') COUNT(bounds_mask)
+    ! CALL wrf_debug (wrfdbg, 'SPFire_deposit within bounds: '//msg)
 
     sparse_mask = ( bounds_mask .AND. (fs_p_id > 0 .AND. fs_p_z <= land_hgt))
 
@@ -3426,8 +3431,8 @@ SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
     nresets = 0
     nresets = COUNT(sparse_mask)
 
-    WRITE (msg,'(i6)') nresets
-    CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
+    ! WRITE (msg,'(i6)') nresets
+    ! CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
 
     IF (nresets > 0) THEN
 
@@ -3438,8 +3443,8 @@ SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
         ALLOCATE(rx(nresets),ry(nresets))!, mask_idx(nresets), rid(nresets), bounds_mask(nresets))
 
         ! Get indices of particles when sparse_mask = True
-        rx = 0
-        ry = 0
+        rx(:) = 0
+        ry(:) = 0
 
         rx(1:nresets) = FLOOR(PACK(fs_p_x, sparse_mask))
         ry(1:nresets) = FLOOR(PACK(fs_p_y, sparse_mask))
@@ -3452,8 +3457,8 @@ SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
             sum_fbrand(rx(k),ry(k)) = sum_fbrand(rx(k),ry(k)) + 1.0_dp
         ENDDO
 
-        WRITE (msg,'(i12)') COUNT(sum_fbrand(is:ie, js:je) > 0)
-        CALL wrf_debug (wrfdbg, 'SPFire_deposit sum fbrand: '//msg)
+        ! WRITE (msg,'(i12)') SUM(sum_fbrand(is:ie, js:je) > 0)
+        ! CALL wrf_debug (wrfdbg, 'SPFire_deposit sum fbrand: '//msg)
 
         !-------------------------------------------------------------------------------
         ! Reset array
