@@ -688,7 +688,7 @@ END FUNCTION order_val
 
         ! when all brand IDs of array elements are zero: nothing active
         active_br   = COUNT( fs_p_id > 0 ) 
-        new_release = COUNT( INT(release_i) > 0 ) 
+        new_release = COUNT( (INT(release_i) > 0) .AND. (INT(release_j) > 0) ) 
 
         IF (new_release > 0 ) release_true = .TRUE. ! to-do: include dependency on release_dt  
 
@@ -910,7 +910,7 @@ END FUNCTION order_val
 ! fpij = 298, sr = 3: 297/3+1 = 100
 ! fpij = 299, sr = 3: 298/3+1 = 100.333
 ! fpij = 300, sr = 3: 299/3+1 = 100.666
-! fpij = 301, sr = 3maxhgt_usr: 300/3+1 = 101
+! fpij = 301, sr = 3: 300/3+1 = 101
 
 ! fpij = 297, sr = 4: 296/4+1 = 75.00
 ! fpij = 298, sr = 4: 297/4+1 = 75.25
@@ -1792,12 +1792,53 @@ END FUNCTION order_val
             firepts = 0
             Ngrdpts = 0 ! Number of active fire points of valid fuel categories
 
+#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+            IF (.NOT. (IamMaster)) THEN
+
+                ! nbr > 0 indicates there's fire on tile and RelPot > 0, not the array size to receive in next mpi comm
+                ! if nbr > 0, next array will be one (array: MeanPot) 
+                CALL fs_mpi_sendbuff1_int(sendto=MasterId, nbr=Ngrdpts) 
+
+            ENDIF
+#endif
+
+            !===============================================================================
+            ! Firebrand Generation - Release Firebrands - Part 2
+            !===============================================================================
+
+            !-------------------------------------------------------------------------------
+            ! MPI Master: Calculate Release Field (fire gridpt cnt by fuel category)
+            !-------------------------------------------------------------------------------
+
+            IF (IamMaster) THEN                      
+
+                CALL wrf_debug (wrfdbg, 'SPFire_rel_master --------------------------------------------------- ')                    
+                !-------------------------------------------------------------------------------
+                ! Declare arrays to receive data
+
+                ALLOCATE(np_Ngrdpts(ntiles)) ! Number of fuel cat actively burning in each mpiproc
+                np_Ngrdpts(:) = 0
+
+                np_Ngrdpts(1) = Ngrdpts ! Array index for Master is 1
+
+#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+
+                DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
+                    np_Ngrdpts(kk) = fs_mpi_recvbuff1_int(fromid=kk-1)  ! Comm receive: Number of pts with RelPot>0
+
+                    IF (np_Ngrdpts(kk) > 0) THEN 
+                        WRITE(msg, '(3(i8,1x))') my_id, kk-1, np_Ngrdpts(kk)
+                        CALL wrf_debug (wrfdbg, 'SPFire_rel master proc Ngrdpts: np_Ngrdpts should be zero! '//msg)
+                    ENDIF
+                ENDDO
+#endif
+
             ! !===============================================================================
             ! ! Firebrand Generation - Release Firebrands - Part 3
             ! !===============================================================================
 
             relpts = 0
-            if ( my_id == 1) then
+            IF ( my_id == 1) THEN
 
                 relpts = 3
 
@@ -2352,11 +2393,11 @@ END FUNCTION order_val
             ! convert fire_area from fire grid to atm grid
             !-------------------------------------------------------------------------------
             fs_fire_area(is:ie,js:je)  = ZERO_dp
-                fs_fire_area(is:ie, js:je) = fire2tile(fr_arr=grid%fire_area(ifps:ifpe,jfps:jfpe), &
+            fs_fire_area(is:ie, js:je) = fire2tile(fr_arr=grid%fire_area(ifps:ifpe,jfps:jfpe), &
                                                    dsx=grid%sr_x,dsy=grid%sr_y)
 
-            ! WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
-            ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd: Spotfire Likelihood, deposit points: '//msg)
+            WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
+            CALL wrf_debug (wrfdbg, 'SPFire_lkhd: Spotfire Likelihood, deposit points: '//msg)
 
             IF (ndep > 0) THEN
 
@@ -2431,23 +2472,23 @@ END FUNCTION order_val
                     landing_cnt = PACK(fs_count_landed_hist(is:ie,js:je), landing_mask(is:ie,js:je))
                     landed_risk = PACK(fs_fuel_spotting_risk(is:ie,js:je), landing_mask(is:ie,js:je))
 
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                    IF (.NOT. (IamMaster)) THEN
-
-                        CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=ndep) ! Comm send >0: BuffSz
-                        CALL fs_mpi_sendbuff_int(sendto=MasterId, bsz=ndep, buff=landing_cnt(1:ndep))
-                        CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))
-                            
-                    ENDIF
-#endif
                 ENDIF ! (fs_count_landed_hist > 0 .AND. fire_area == 0)
             ENDIF ! SUM(fs_count_landed_hist) > 0
 
             !-------------------------------------------------------------------------------
-
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF ((ndep == 0) .AND. .NOT.(IamMaster)) &
+            IF (.NOT. (IamMaster)) THEN
+
+               IF (ndep > 0) THEN
+                  CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=ndep) ! Comm send >0: BuffSz
+                  CALL fs_mpi_sendbuff_int(sendto=MasterId, bsz=ndep, buff=landing_cnt(1:ndep))
+                  CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))                            
+               ENDIF
+
+               IF (ndep == 0) &
                 CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+
+            ENDIF
 #endif
             !-------------------------------------------------------------------------------
             ! Master: Calculate Likelihood Field
@@ -3341,7 +3382,8 @@ END SUBROUTINE remove_br
 
 
 !=============================================================
-PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
+!PURE 
+SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
 !=============================================================
 
     IMPLICIT NONE
@@ -3377,16 +3419,19 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hg
                    (FLOOR(fs_p_y) >= js) .OR. &
                    (FLOOR(fs_p_y) <= je))
 
+    WRITE (msg,'(i6)') COUNT(bounds_mask)
+    CALL wrf_debug (wrfdbg, 'SPFire_deposit within bounds: '//msg)
+
     sparse_mask = ( bounds_mask .AND. (fs_p_id > 0 .AND. fs_p_z <= land_hgt))
 
     !-------------------------------------------------------------------------------
     ! Deposit flagged brands
     !-------------------------------------------------------------------------------
-
+    nresets = 0
     nresets = COUNT(sparse_mask)
 
-    ! WRITE (msg,'(i6)') nresets
-    ! CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
+    WRITE (msg,'(i6)') nresets
+    CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
 
     IF (nresets > 0) THEN
 
@@ -3397,42 +3442,11 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hg
         ALLOCATE(rx(nresets),ry(nresets))!, mask_idx(nresets), rid(nresets), bounds_mask(nresets))
 
         ! Get indices of particles when sparse_mask = True
-        !mask_idx = idx_packed_1d(mask=sparse_mask)
         rx = 0
         ry = 0
 
-        ! rx(1:nresets) = MIN(ie, NINT(PACK(fs_p_x, sparse_mask)) ) ! Using Nint to destager grid
-        ! ry(1:nresets) = MIN(je, NINT(PACK(fs_p_y, sparse_mask)) )
         rx(1:nresets) = FLOOR(PACK(fs_p_x, sparse_mask))
         ry(1:nresets) = FLOOR(PACK(fs_p_y, sparse_mask))
-
-
-        ! Use indices to fetch x, y positions and id of depositing particles
-        ! rid = 0
-        ! rx(1:nresets) = FLOOR(fs_p_x(mask_idx)) 
-        ! ry(1:nresets) = FLOOR(fs_p_y(mask_idx)) 
-        ! rid(1:nresets) = fs_p_id(mask_idx)
-
-        ! !-------------------------------------------------------------------------------
-        ! ! adjust depositing position to inside this tile 
-        ! !  (incrementing sum_fbrand at memory buffer leads to memory error)
-        ! !-------------------------------------------------------------------------------
-
-        ! bounds_mask = .FALSE. 
-        ! bounds_mask = (rid > 0    .AND. &
-        !                ((rx < is) .OR. (rx > ie) .OR. &
-        !                 (ry < js) .OR. (ry > je)))
-
-        ! IF (COUNT(bounds_mask) > 0) THEN
-
-        !     WRITE (msg,'(1(i6,1x))') COUNT(bounds_mask)
-        !     CALL wrf_debug (wrfdbg, 'SPFire_deposit adjust out of tile bounds'//msg)
-                
-        !     WHERE (rid > 0 .AND. rx < is) rx = is
-        !     WHERE (rid > 0 .AND. rx > ie) rx = ie
-        !     WHERE (rid > 0 .AND. ry < js) ry = js
-        !     WHERE (rid > 0 .AND. ry > je) ry = je
-        ! ENDIF
             
         !-------------------------------------------------------------------------------
         ! Increment sum_fbrand
@@ -3441,6 +3455,9 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hg
         DO k=1,nresets
             sum_fbrand(rx(k),ry(k)) = sum_fbrand(rx(k),ry(k)) + 1.0_dp
         ENDDO
+
+        WRITE (msg,'(i12)') COUNT(sum_fbrand(is:ie, js:je) > 0)
+        CALL wrf_debug (wrfdbg, 'SPFire_deposit sum fbrand: '//msg)
 
         !-------------------------------------------------------------------------------
         ! Reset array
