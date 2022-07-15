@@ -1794,11 +1794,9 @@ END FUNCTION order_val
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
             IF (.NOT. (IamMaster)) THEN
-
                 ! nbr > 0 indicates there's fire on tile and RelPot > 0, not the array size to receive in next mpi comm
                 ! if nbr > 0, next array will be one (array: MeanPot) 
                 CALL fs_mpi_sendbuff1_int(sendto=MasterId, nbr=Ngrdpts) 
-
             ENDIF
 #endif
 
@@ -1818,7 +1816,6 @@ END FUNCTION order_val
 
                 ALLOCATE(np_Ngrdpts(ntiles)) ! Number of fuel cat actively burning in each mpiproc
                 np_Ngrdpts(:) = 0
-
                 np_Ngrdpts(1) = Ngrdpts ! Array index for Master is 1
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
@@ -1832,6 +1829,7 @@ END FUNCTION order_val
                     ENDIF
                 ENDDO
 #endif
+            ENDIF
 
             ! !===============================================================================
             ! ! Firebrand Generation - Release Firebrands - Part 3
@@ -1876,11 +1874,9 @@ END FUNCTION order_val
                 release_j(1:relpts) = ([15, 20, 25])
                 release_k(1:relpts) = firebrand_gen_maxhgt
 
-                DO kk=1,relpts
-
+                DO kk=1,relpts ! track release points between history outputs
                     fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) = &
                         fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) + 1
-
                 ENDDO
             
                 CALL wrf_debug (wrfdbg, 'SPFire_rel2fr prep_release_hgt ---------------------------------------------')
@@ -1947,7 +1943,7 @@ END FUNCTION order_val
 
                 IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
-            ENDIF ! Ngrdpts > 0                                    
+            ENDIF ! my_id == x                                    
 
             fs_fire_ROSdt(:, :) = ZERO_dp
             relpts = 0
@@ -2494,7 +2490,7 @@ END FUNCTION order_val
             ! Master: Calculate Likelihood Field
             !-------------------------------------------------------------------------------
 
-            IF (IamMaster) THEN                      
+            IF (IamMaster) THEN 
 
                 !-------------------------------------------------------------------------------
                 ! Declare arrays to receive data
