@@ -2149,8 +2149,8 @@ END FUNCTION order_val
             WRITE (msg,'(i12)') nresets
             CALL wrf_debug (wrfdbg, 'SPFire_driver remove br: '//msg)
 
-            WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
-            CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands, id>0: '// msg )
+            ! WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands, id>0: '// msg )
 
 
             !=============================================================================== 
@@ -2172,8 +2172,8 @@ END FUNCTION order_val
             WRITE (msg,'(f12.3)') SUM(dt_sum_landed(is:ie, js:je))
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
 
-            WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
-            CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands, id>0: '// msg )
+            ! WRITE (msg,'(2(i8,x))') active_br, COUNT( fs_p_id > 0 )
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands, id>0: '// msg )
 
 
             !=============================================================================== 
@@ -2348,8 +2348,8 @@ END FUNCTION order_val
             fs_fire_area(is:ie, js:je) = fire2tile(fr_arr=grid%fire_area(ifps:ifpe,jfps:jfpe), &
                                                    dsx=grid%sr_x,dsy=grid%sr_y)
 
-            WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
-            CALL wrf_debug (wrfdbg, 'SPFire_lkhd: deposit points, fire points: '//msg)
+            ! WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
+            ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd: deposit points, fire points: '//msg)
 
             IF (ndep > 0) THEN ! deposited anywhere
 
@@ -2361,10 +2361,10 @@ END FUNCTION order_val
                 ! deposited on nonburning gridpt
                 fs_landing_mask(is:ie, js:je) = UNPACK(SPREAD(1,DIM=1,NCOPIES=ndep), MASK=landing_mask(is:ie, js:je), FIELD=0)
 
-                WRITE(msg, '(3(i8,1x))') COUNT(fs_count_landed_hist(is:ie, js:je) > ZERO_dp), &
-                                         ndep, &
-                                         COUNT((fs_count_landed_hist(is:ie, js:je) > ZERO_dp).AND.(fs_fire_area(is:ie, js:je) > ZERO_dp))
-                CALL wrf_debug (wrfdbg, 'SPFire_lkhd deposits, non fire-point deposits, fire-point deposits: '//msg)
+                ! WRITE(msg, '(3(i8,1x))') COUNT(fs_count_landed_hist(is:ie, js:je) > ZERO_dp), &
+                !                          ndep, &
+                !                          COUNT((fs_count_landed_hist(is:ie, js:je) > ZERO_dp).AND.(fs_fire_area(is:ie, js:je) > ZERO_dp))
+                ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd deposits, non fire-point deposits, fire-point deposits: '//msg)
 
                 ALLOCATE(tmp1(ndep))
                 tmp1 = PACK(fs_count_landed_hist(is:ie, js:je), landing_mask(is:ie, js:je)) ! WHERE doest work on memory bounds
@@ -2439,10 +2439,10 @@ END FUNCTION order_val
             ! Assign values to array and release incoming particles
             fb_mdetv  = [(p_properties(r_p_m(kk), r_p_d(kk), r_p_e(kk), r_p_t(kk), r_p_v(kk)), kk=1,nbr_sum)]
 
-            DO kk=1, nbr_sum
-                WRITE(msg,'(3(i6,1x),3(f12.6,1x))') r_id(kk), r_src(kk), r_dt(kk), r_x(kk), r_y(kk), r_z(kk)
-                CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER  >>> '// msg)
-            ENDDO
+            ! DO kk=1, nbr_sum
+            !     WRITE(msg,'(3(i6,1x),3(f12.6,1x))') r_id(kk), r_src(kk), r_dt(kk), r_x(kk), r_y(kk), r_z(kk)
+            !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER  >>> '// msg)
+            ! ENDDO
 
             prior_br = active_br + 1 ! Array is packed so new particles will be assgned at this position
             CALL generate_firebrands(&
