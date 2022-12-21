@@ -109,7 +109,8 @@ state    real   qevacxy    ij      -       1      -     i02d=(interp_mask_land_f
 state    real   qdewcxy    ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "qdewc"      "canopy dew rate"                       "mm/s"
 state    real   qfrzcxy    ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "qfrzc"      "canopy liquid freeze rate"             "mm/s"
 state    real   qmeltcxy   ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "qmeltc"     "canopy snow melt rate"                 "mm/s"
-state    real   qsnbotxy   ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "qsnbot"     "snow melt out of pack bottom"          "mm/s"
+state    real   qsnbotxy   ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "qsnbot"     "total liquid water (melt + rain through pack) out of snowpack bottom"   "mm/s"
+state    real   qmeltxy    ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "qmelt"      "snow melt rate due to phase change"    "mm/s"
 state    real   pondingxy  ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "ponding"    "surface ponding from complete pack melt"  "mm"
 state    real   pahxy      ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "pah"        "precipitation advected energy"         "W/m2"
 state    real   pahgxy     ij      -       1      -     i02d=(interp_mask_land_field:lu_index)u=(copy_fcnm)     "pahg"       "precipitation advected energy - to below canopy" "W/m2"
@@ -159,7 +160,8 @@ state    real   acfrzc     ij      -       1      -     rhd=(interp_mask_land_fi
 state    real   acmeltc    ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acmeltc"    "Accumulated canopy snow melt"           "mm"
 
 # Needed for snowpack water budget
-state    real   acsnbot    ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acsnbot"    "Accumulated snow melt out of pack bottom"           "mm"
+state    real   acsnbot    ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acsnbot"    "Accumulated total liquid water (melt + rain through pack) out of snowpack bottom"  "mm"
+state    real   acsnmelt   ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acsnmelt"   "Accumulated snowmelt due to phase change"     "mm"
 state    real   acponding  ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acponding"  "Accumulated surface ponding from complete pack melt"          "mm"
 state    real   acsnsub    ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acsnsub"    "Accumulated snow pack sublimation"           "mm"
 state    real   acsnfro    ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acsnfro"    "Accumulated snow pack frost"           "mm"
@@ -200,9 +202,9 @@ state    real   soilenergy ij      -       1      -     hd=(interp_mask_land_fie
 state    real   snowenergy ij      -       1      -     hd=(interp_mask_land_field:lu_index)u=(copy_fcnm)        "snowenergy" "energy content in snow relative to 273.16" "kJ/m2"
 
 state    real   acc_ssoil     ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_ssoil"     "accumulated SSOIL between dt_soil"    "W/m2"
-state    real   acc_qinsur    ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_qinsur"    "accumulated QINSUR between dt_soil"   "mm/s"
-state    real   acc_qseva     ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_qseva"     "accumulated QSEVA between dt_soil"    "mm/s"
-state    real   acc_etrani   ilj      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_etrani"    "accumulated ETRANI between dt_soil"   "mm/s"
+state    real   acc_qinsur    ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_qinsur"    "accumulated QINSUR between dt_soil"   "m/s*dt_soil/dt_noahmp"
+state    real   acc_qseva     ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_qseva"     "accumulated QSEVA between dt_soil"    "m/s*dt_soil/dt_noahmp"
+state    real   acc_etrani   ilj      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_etrani"    "accumulated ETRANI between dt_soil"   "m/s*dt_soil/dt_noahmp"
 state    real   aceflxb       ij      -       1      -     rhd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "aceflxb "     "accumulated bottom soil heat flux"    "kJ/m2"
 state    real   eflxbxy       ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "eflxbxy "      "bottom soil heat flux"                "W/m2"
 state    real   acc_dwaterxy  ij      -       1      -     rd=(interp_mask_land_field:lu_index)u=(copy_fcnm)       "acc_dwater"    "accumulated canopy,snow,soil water change between dt_soil"   "mm"
