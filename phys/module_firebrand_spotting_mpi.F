@@ -409,9 +409,9 @@ CONTAINS
         CALL MPI_COMM_SIZE( MPI_COMM_WORLD, numprocs, ierr)
         mpiprocs = numprocs ! mpiprocs and my_id are in module scope
 
-        IF(mpiprocs == 1) THEN
-           CALL wrf_error_fatal( "Firebrands module must be compiled with serial option for using 1 MPI task")
-        ENDIF
+        ! IF(mpiprocs == 1) THEN
+        !    CALL wrf_error_fatal( "Firebrands module must be compiled with serial option for using 1 MPI task")
+        ! ENDIF
 
         WRITE (msg,'(2(i6,1x))') my_id, numprocs
         CALL wrf_debug (wrfdbg, 'SPFire_mpi mpi initialized. myid, nproc: '//msg)
