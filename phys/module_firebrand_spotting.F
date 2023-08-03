@@ -1809,8 +1809,8 @@ END FUNCTION order_val
 
             IF (firepts > 0) THEN 
 
-                !WRITE (msg,'(1(i6,1x))') firepts
-                !CALL wrf_debug (wrfdbg, 'SPFire_rel firepts: '//msg)
+                WRITE (msg,'(1(i6,1x))') firepts
+                CALL wrf_debug (wrfdbg, 'SPFire_rel firepts: '//msg)
 
                 !-------------------------------------------------------------------------------
                 ! Get fuel category from WRF-FIRE and calculate release potential
@@ -1821,11 +1821,17 @@ END FUNCTION order_val
                 RelPot(:,:) = ZERO_dp
                 fcat_factor(:,:) = ZERO_dp
 
+                CALL wrf_debug (0, 'SPFire checkpoint 1.4.1')
+
                 fcat_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
                                                                     cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe)), &
                                                        SHAPE(fcat_fr))
 
+                CALL wrf_debug (0, 'SPFire checkpoint 1.4.2')
+
                 fcat_factor(ifps:ifpe,jfps:jfpe)= firebrand_gen_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE, SHAPE(fcat_fr)) 
+
+                CALL wrf_debug (0, 'SPFire checkpoint 1.4.3')
 
                 RelPot(ifps:ifpe,jfps:jfpe) = RESHAPE(firebrand_gen_potential(&
                                                              fuel_fgi=grid%fgip(ifps:ifpe,jfps:jfpe), &
@@ -1918,12 +1924,11 @@ END FUNCTION order_val
                 ! Prepare for MPI
                 !-------------------------------------------------------------------------------
 
-                IF (Ngrdpts == 0) firepts = 0
-
                 !-------------------------------------------------------------------------------
 
             ENDIF ! (firepts > 0)
             !-------------------------------------------------------------------------------
+            IF (Ngrdpts == 0) firepts = 0
 
 ! #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
 !             IF (.NOT. (IamMaster)) THEN
@@ -2191,6 +2196,8 @@ END FUNCTION order_val
                 IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
             ENDIF ! Ngrdpts > 0                                    
+
+            CALL wrf_debug (0, 'SPFire checkpoint 1.9')
 
             fs_fire_ROSdt(:, :) = ZERO_dp
             relpts = 0
