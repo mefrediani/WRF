@@ -1631,7 +1631,7 @@ END FUNCTION order_val
         LOGICAL, ALLOCATABLE, DIMENSION(:,:)  :: rel_mask
 
         INTEGER :: Ngrdpts, Npts_total, relpts, rankpts 
-        REAL    :: TotPot, MeanPot, PotThr, rel_ratio, cdf_coeff, LimPot
+        REAL    :: TotPot, MeanPot, PotThr, rel_ratio, cdf_coeff, LimPot, maxpot
 
         ! Firebrand Release and Transport
         TYPE(p_properties), ALLOCATABLE, DIMENSION(:)   :: release_prop
@@ -1686,8 +1686,10 @@ END FUNCTION order_val
 
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-        IF (mpiprocs == 0) & 
-            CALL fs_mpi_init(grid) ! should be called in fspotting_init (?)
+        IF (mpiprocs == 0) THEN
+           CALL fs_mpi_init(grid) ! should be called in fspotting_init (?)
+           CALL wrf_debug (0, 'SPFire back from fs_mpi_init')
+        ENDIF
 
         ntiles = mpiprocs
         myprocid = my_id * 1000000
@@ -1834,11 +1836,11 @@ END FUNCTION order_val
                 ! Try to increase minimum LimPot to remove very low values of Release Potential
                 !-------------------------------------------------------------------------------
                 IF (Ngrdpts > fs_gen_lim) THEN
-                    LimPot = 10.0_dp * LimPot ! 1e-5
+                    LimPot = 100.0_dp * LimPot ! 1e-4
                     Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
 
                     IF (Ngrdpts > fs_gen_lim) THEN
-                        LimPot = 10.0_dp * LimPot ! 1e-4
+                        LimPot = 100.0_dp * LimPot ! 1e-2
                         Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
 
                     ENDIF
@@ -1863,42 +1865,43 @@ END FUNCTION order_val
 
                     ! Find a limit value that yields an array size close to fs_gen_lim
                     LimPot = order_val(tmp1, ORD=fs_gen_lim)
-                    !maxpot = MAXVAL(tmp1)
+                    maxpot = MAXVAL(tmp1)
                     DEALLOCATE(tmp1)
 
-                    ! WRITE (msg,'(3(i8,1x), 2(f14.8,1x))') Ngrdpts, COUNT(RelPot > LimPot), SIZE(tmp1), LimPot, maxpot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Lim, LimP, max: '//msg)
+                    WRITE (msg,'(3(i8,1x), 2(f14.8,1x))') Ngrdpts, COUNT(RelPot > LimPot), SIZE(tmp1), LimPot, maxpot
+                    CALL wrf_debug (0, 'SPFire reducing firebrand generation')
+                    CALL wrf_debug (0, 'SPFire_rel_lim Ngrdpts, Cnt>Lim, LimP, max: '//msg)
 
-                    ! Find the median rank among remaining points
-                    !-------------------------------------------------------------------------------
+                    ! ! Find the median rank among remaining points
+                    ! !-------------------------------------------------------------------------------
 
-                    ALLOCATE(tmp1(COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)))
-                    tmp1 = PACK(RelPot(ifps:ifpe,jfps:jfpe), &
-                                mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot))
+                    ! ALLOCATE(tmp1(COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)))
+                    ! tmp1 = PACK(RelPot(ifps:ifpe,jfps:jfpe), &
+                    !             mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot))
 
-                    MeanPot = order_val(tmp1, ORD=INT(REAL(SIZE(tmp1))/2.0))
-                    !maxpot = MAXVAL(tmp1)
-                    DEALLOCATE(tmp1)
+                    ! MeanPot = order_val(tmp1, ORD=INT(REAL(SIZE(tmp1))/2.0))
+                    ! !maxpot = MAXVAL(tmp1)
+                    ! DEALLOCATE(tmp1)
 
-                    ! WRITE (msg,'(4(i8,1x), 3(f14.8,1x))') Ngrdpts, &
-                    !     COUNT(RelPot > MeanPot), SIZE(tmp1), INT(REAL(SIZE(tmp1))/2.0), &
-                    !     MeanPot, MINVAL(tmp1), maxpot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Mean, MPot, min, max: '//msg)
+                    ! ! WRITE (msg,'(4(i8,1x), 3(f14.8,1x))') Ngrdpts, &
+                    ! !     COUNT(RelPot > MeanPot), SIZE(tmp1), INT(REAL(SIZE(tmp1))/2.0), &
+                    ! !     MeanPot, MINVAL(tmp1), maxpot
+                    ! ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Mean, MPot, min, max: '//msg)
 
-                    Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
+                    ! Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
 
                 !-------------------------------------------------------------------------------
                     
-                ELSEIF (Ngrdpts > 0) THEN
+                ! ELSEIF (Ngrdpts > 0) THEN
 
-                    ! Find the median rank among points
-                    !-------------------------------------------------------------------------------
-                    MeanPot = order_val(PACK(RelPot(ifps:ifpe,jfps:jfpe), &
-                                      mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)), &
-                                      ORD=INT(dp05*Ngrdpts))
+                !     ! Find the median rank among points
+                !     !-------------------------------------------------------------------------------
+                !     MeanPot = order_val(PACK(RelPot(ifps:ifpe,jfps:jfpe), &
+                !                       mask=(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)), &
+                !                       ORD=INT(dp05*Ngrdpts))
 
-                    ! WRITE (msg,'(2(i8,1x), 2(f14.8,1x))') Ngrdpts, COUNT(RelPot > MeanPot), MeanPot, LimPot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Mean, MPot, LimP: '//msg)
+                !     ! WRITE (msg,'(2(i8,1x), 2(f14.8,1x))') Ngrdpts, COUNT(RelPot > MeanPot), MeanPot, LimPot
+                !     ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, Cnt>Mean, MPot, LimP: '//msg)
 
                 ENDIF
 
@@ -1912,20 +1915,20 @@ END FUNCTION order_val
             ENDIF ! (firepts > 0)
             !-------------------------------------------------------------------------------
 
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF (.NOT. (IamMaster)) THEN
+! #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+!             IF (.NOT. (IamMaster)) THEN
 
-                ! nbr > 0 indicates there's fire on tile and RelPot > 0, not the array size to receive in next mpi comm
-                ! if nbr > 0, next array will be one (array: MeanPot) 
-                CALL fs_mpi_sendbuff1_int(sendto=MasterId, nbr=Ngrdpts) 
+!                 ! nbr > 0 indicates there's fire on tile and RelPot > 0, not the array size to receive in next mpi comm
+!                 ! if nbr > 0, next array will be one (array: MeanPot) 
+!                 CALL fs_mpi_sendbuff1_int(sendto=MasterId, nbr=Ngrdpts) 
 
-                IF (Ngrdpts > 0) THEN
-                    CALL fs_mpi_sendbuff1_real(sendto=MasterId, nbr=MeanPot) 
-                    ! WRITE (msg,'(1(i6,1x), (f14.6,1x))') Ngrdpts, MeanPot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel mpi_send Npts,Meanpot: '//msg)
-                ENDIF
-            ENDIF
-#endif
+!                 IF (Ngrdpts > 0) THEN
+!                     CALL fs_mpi_sendbuff1_real(sendto=MasterId, nbr=MeanPot) 
+!                     ! WRITE (msg,'(1(i6,1x), (f14.6,1x))') Ngrdpts, MeanPot
+!                     ! CALL wrf_debug (wrfdbg, 'SPFire_rel mpi_send Npts,Meanpot: '//msg)
+!                 ENDIF
+!             ENDIF
+! #endif
 
             !===============================================================================
             ! Firebrand Generation - Release Firebrands - Part 2
@@ -1935,89 +1938,89 @@ END FUNCTION order_val
             ! MPI Master: Calculate Release Field (fire gridpt cnt by fuel category)
             !-------------------------------------------------------------------------------
 
-            IF (IamMaster) THEN                      
+!             IF (IamMaster) THEN                      
 
-                CALL wrf_debug (wrfdbg, 'SPFire_rel_master --------------------------------------------------- ')                    
-                !-------------------------------------------------------------------------------
-                ! Declare arrays to receive data
+!                 CALL wrf_debug (wrfdbg, 'SPFire_rel_master --------------------------------------------------- ')                    
+!                 !-------------------------------------------------------------------------------
+!                 ! Declare arrays to receive data
 
-                Npts_total = 0
-                PotThr = ZERO_dp 
-                TotPot = ZERO_dp
-                rel_ratio = ZERO_dp
-                cdf_coeff = ZERO_dp
+!                 Npts_total = 0
+!                 PotThr = ZERO_dp 
+!                 TotPot = ZERO_dp
+!                 rel_ratio = ZERO_dp
+!                 cdf_coeff = ZERO_dp
 
                 
-                ALLOCATE(np_Ngrdpts(ntiles)) ! Number of fuel cat actively burning in each mpiproc
-                ALLOCATE(np_MeanPot(ntiles)) 
-                np_MeanPot(:) = ZERO_dp
-                np_Ngrdpts(:) = 0
+!                 ALLOCATE(np_Ngrdpts(ntiles)) ! Number of fuel cat actively burning in each mpiproc
+!                 ALLOCATE(np_MeanPot(ntiles)) 
+!                 np_MeanPot(:) = ZERO_dp
+!                 np_Ngrdpts(:) = 0
 
-                np_Ngrdpts(1) = Ngrdpts ! Array index for Master is 1
-                np_MeanPot(1) = MeanPot
+!                 np_Ngrdpts(1) = Ngrdpts ! Array index for Master is 1
+!                 np_MeanPot(1) = MeanPot
 
-                !-------------------------------------------------------------------------------
-                ! Receive release potential data from procs
+!                 !-------------------------------------------------------------------------------
+!                 ! Receive release potential data from procs
 
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+! #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
 
-                DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
-                    np_Ngrdpts(kk) = fs_mpi_recvbuff1_int(fromid=kk-1)  ! Comm receive: Number of pts with RelPot>0
+!                 DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
+!                     np_Ngrdpts(kk) = fs_mpi_recvbuff1_int(fromid=kk-1)  ! Comm receive: Number of pts with RelPot>0
 
-                    IF (np_Ngrdpts(kk) > 0) THEN 
-                        np_MeanPot(kk) = fs_mpi_recvbuff1_real(fromid=kk-1)
-                        ! WRITE(msg, '(3(i8,1x), 2(f14.6,1x))') my_id, kk-1, np_Ngrdpts(kk), np_Meanpot(kk), TotPot
-                        ! CALL wrf_debug (wrfdbg, 'SPFire_rel master proc Ngrdpts, MeanPot, TotPot: '//msg)
-                    ENDIF
-                ENDDO
-#endif
+!                     IF (np_Ngrdpts(kk) > 0) THEN 
+!                         np_MeanPot(kk) = fs_mpi_recvbuff1_real(fromid=kk-1)
+!                         ! WRITE(msg, '(3(i8,1x), 2(f14.6,1x))') my_id, kk-1, np_Ngrdpts(kk), np_Meanpot(kk), TotPot
+!                         ! CALL wrf_debug (wrfdbg, 'SPFire_rel master proc Ngrdpts, MeanPot, TotPot: '//msg)
+!                     ENDIF
+!                 ENDDO
+! #endif
 
-                DO kk=1, ntiles ! at least 1 for serial compile 
-                   TotPot = np_MeanPot(kk) * REAL(np_Ngrdpts(kk)) + TotPot 
-                ENDDO
+!                 DO kk=1, ntiles ! at least 1 for serial compile 
+!                    TotPot = np_MeanPot(kk) * REAL(np_Ngrdpts(kk)) + TotPot 
+!                 ENDDO
 
-                !-------------------------------------------------------------------------------
-                ! Communicate release sources between Master and procs
+!                 !-------------------------------------------------------------------------------
+!                 ! Communicate release sources between Master and procs
 
-                Npts_total = SUM( np_Ngrdpts )
-                IF ( Npts_total > 0) THEN 
+!                 Npts_total = SUM( np_Ngrdpts )
+!                 IF ( Npts_total > 0) THEN 
 
-                    TotPot = TotPot/(REAL(Npts_total))
+!                     TotPot = TotPot/(REAL(Npts_total))
 
-                    !-------------------------------------------------------------------------------
-                    ! Calculate potential threshold for grid pts
+!                     !-------------------------------------------------------------------------------
+!                     ! Calculate potential threshold for grid pts
 
-                    ! All elements fit in the array
-                    IF (Npts_total <= fs_gen_lim) THEN
-                        PotThr = ZERO_dp 
+!                     ! All elements fit in the array
+!                     IF (Npts_total <= fs_gen_lim) THEN
+!                         PotThr = ZERO_dp 
 
-                    ! Estimate threshold with a linear regression 
-                    ELSE ! IF (Npts_total > fs_gen_lim) 
-                        rel_ratio = REAL(fs_gen_lim)/(REAL(Npts_total))
-                        cdf_coeff = (dp1 - rel_ratio)/rel_ratio
-                        PotThr = cdf_coeff * TotPot
-                    ENDIF
+!                     ! Estimate threshold with a linear regression 
+!                     ELSE ! IF (Npts_total > fs_gen_lim) 
+!                         rel_ratio = REAL(fs_gen_lim)/(REAL(Npts_total))
+!                         cdf_coeff = (dp1 - rel_ratio)/rel_ratio
+!                         PotThr = cdf_coeff * TotPot
+!                     ENDIF
 
-                    ! WRITE(msg, '(2(i8,1x), 4(f12.6,1x))') fs_gen_lim, Npts_total, PotThr, rel_ratio, cdf_coeff, TotPot
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel_master max, Npts, PotThr: '//msg)
+!                     ! WRITE(msg, '(2(i8,1x), 4(f12.6,1x))') fs_gen_lim, Npts_total, PotThr, rel_ratio, cdf_coeff, TotPot
+!                     ! CALL wrf_debug (wrfdbg, 'SPFire_rel_master max, Npts, PotThr: '//msg)
 
-                    !-------------------------------------------------------------------------------
-                    ! Send dat to procs
+!                     !-------------------------------------------------------------------------------
+!                     ! Send dat to procs
 
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+! #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
 
-                    DO kk=2, mpiprocs ! kk=1 is Master
-                        IF (np_Ngrdpts(kk) > 0) THEN
-                            CALL fs_mpi_sendbuff1_real(sendto=kk-1, nbr=PotThr)
-                            ! WRITE(msg, '(1(i8,1x), 1(f12.6,1x))') kk-1, PotThr
-                            ! CALL wrf_debug (wrfdbg, 'SPFire_rel_master mpi_send PotThr: '//msg)
-                        ENDIF
-                    ENDDO
-#endif
-                ENDIF ! npts_total > 0
-                !-------------------------------------------------------------------------------
+!                     DO kk=2, mpiprocs ! kk=1 is Master
+!                         IF (np_Ngrdpts(kk) > 0) THEN
+!                             CALL fs_mpi_sendbuff1_real(sendto=kk-1, nbr=PotThr)
+!                             ! WRITE(msg, '(1(i8,1x), 1(f12.6,1x))') kk-1, PotThr
+!                             ! CALL wrf_debug (wrfdbg, 'SPFire_rel_master mpi_send PotThr: '//msg)
+!                         ENDIF
+!                     ENDDO
+! #endif
+!                 ENDIF ! npts_total > 0
+!                 !-------------------------------------------------------------------------------
 
-            ENDIF ! IamMaster 
+!             ENDIF ! IamMaster 
 
             !-------------------------------------------------------------------------------
 
@@ -2027,17 +2030,17 @@ END FUNCTION order_val
 
             IF (Ngrdpts > 0) THEN
 
-                !-------------------------------------------------------------------------------
-                ! Receive Potential Threshold from Master 
+!                 !-------------------------------------------------------------------------------
+!                 ! Receive Potential Threshold from Master 
 
-#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                IF (.NOT.(IamMaster)) THEN
-                    PotThr = ZERO_dp 
-                    PotThr = fs_mpi_recvbuff1_real(fromid=MasterId) 
-                    ! WRITE(msg, '((i4,1x), (f14.6,1x))')  my_id, PotThr
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_rel receive potential threshold: '//msg)
-                ENDIF
-#endif
+! #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+!                 IF (.NOT.(IamMaster)) THEN
+!                     PotThr = ZERO_dp 
+!                     PotThr = fs_mpi_recvbuff1_real(fromid=MasterId) 
+!                     ! WRITE(msg, '((i4,1x), (f14.6,1x))')  my_id, PotThr
+!                     ! CALL wrf_debug (wrfdbg, 'SPFire_rel receive potential threshold: '//msg)
+!                 ENDIF
+! #endif
 
                 !------------------------------------------------------------------------------- 
                 ! Assign release from the various fuel cat to corresponding gridpts
@@ -2046,6 +2049,8 @@ END FUNCTION order_val
 
                 ALLOCATE(n_rel_fr2d(ifps:ifpe, jfps:jfpe))
                 n_rel_fr2d(ifps:ifpe, jfps:jfpe) = 0
+
+                PotThr = LimPot ! use the local tile value for the generation limit
 
                 IF (PotThr > ZERO_dp) &
                     n_rel_fr2d(ifps:ifpe,jfps:jfpe) = n_rel_fr2d(ifps:ifpe,jfps:jfpe)  + &
@@ -2195,19 +2200,21 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------        
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-        IF ((active_br == 0))  THEN
+        IF (ntiles > 1) THEN
+           IF ((active_br == 0))  THEN
 
-            CALL fs_mpi_nothing2send(sendto=left_id)
-            CALL fs_mpi_nothing2send(sendto=right_id)
-            CALL fs_mpi_nothing2send(sendto=up_id)
-            CALL fs_mpi_nothing2send(sendto=down_id)
+              CALL fs_mpi_nothing2send(sendto=left_id)
+              CALL fs_mpi_nothing2send(sendto=right_id)
+              CALL fs_mpi_nothing2send(sendto=up_id)
+              CALL fs_mpi_nothing2send(sendto=down_id)
 
-            CALL fs_mpi_nothing2send(sendto=upleft_id)
-            CALL fs_mpi_nothing2send(sendto=upright_id)
-            CALL fs_mpi_nothing2send(sendto=downleft_id)
-            CALL fs_mpi_nothing2send(sendto=downright_id)
-            !CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
+              CALL fs_mpi_nothing2send(sendto=upleft_id)
+              CALL fs_mpi_nothing2send(sendto=upright_id)
+              CALL fs_mpi_nothing2send(sendto=downleft_id)
+              CALL fs_mpi_nothing2send(sendto=downright_id)
+              !CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
 
+           ENDIF
         ENDIF
 #endif
         !===============================================================================
@@ -2501,7 +2508,8 @@ END FUNCTION order_val
             ! IF (COUNT(sparse_mask) > 0) CALL wrf_error_fatal( "MPI called") 
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )            
-            CALL fs_mpi_send2neighbors(task_id=task_id,&
+            IF (ntiles > 1) THEN        
+               CALL fs_mpi_send2neighbors(task_id=task_id,&
                     mask=sparse_mask,&
                     p_x  = fs_p_x,   &
                     p_y  = fs_p_y,   &
@@ -2514,6 +2522,7 @@ END FUNCTION order_val
                     fs_p_e = fs_p_effd, &
                     fs_p_t = fs_p_temp, &
                     fs_p_v = fs_p_tvel)
+            ENDIF
 #endif
             !-------------------------------------------------------------------------------
             ! Reset
@@ -2695,22 +2704,26 @@ END FUNCTION order_val
                     landed_risk = PACK(fs_fuel_spotting_risk(is:ie,js:je), landing_mask(is:ie,js:je))
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                    IF (.NOT. (IamMaster)) THEN
+                    IF (ntiles > 1) THEN
+                       IF (.NOT. (IamMaster)) THEN
 
-                        CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=ndep) ! Comm send >0: BuffSz
-                        CALL fs_mpi_sendbuff_int(sendto=MasterId, bsz=ndep, buff=landing_cnt(1:ndep))
-                        CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))
-                            
+                          CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=ndep) ! Comm send >0: BuffSz
+                          CALL fs_mpi_sendbuff_int(sendto=MasterId, bsz=ndep, buff=landing_cnt(1:ndep))
+                          CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=ndep, buff=landed_risk(1:ndep))
+                          
+                       ENDIF
                     ENDIF
 #endif
-                ENDIF ! (fs_count_landed_hist > 0 .AND. fire_area == 0)
-            ENDIF ! SUM(fs_count_landed_hist) > 0
+                 ENDIF ! (fs_count_landed_hist > 0 .AND. fire_area == 0)
+              ENDIF ! SUM(fs_count_landed_hist) > 0
 
-            !-------------------------------------------------------------------------------
+              !-------------------------------------------------------------------------------
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF ((ndep == 0) .AND. .NOT.(IamMaster)) &
-                CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+              IF (ntiles > 1) THEN
+                 IF ((ndep == 0) .AND. .NOT.(IamMaster)) &
+                      CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+              ENDIF
 #endif
             !-------------------------------------------------------------------------------
             ! Master: Calculate Likelihood Field
@@ -2726,11 +2739,14 @@ END FUNCTION order_val
                 np_nlanded(1) = ndep ! Array index for Master is 1
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
-                    np_nlanded(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
-                    ! WRITE(msg, '(2(i8,1x))') kk,np_nlanded(kk)
-                    ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd proc deposit: '//msg)
-                ENDDO
+                IF (ntiles > 1) THEN
+
+                   DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
+                      np_nlanded(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
+                      ! WRITE(msg, '(2(i8,1x))') kk,np_nlanded(kk)
+                      ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd proc deposit: '//msg)
+                   ENDDO
+                ENDIF
 #endif
                 !-------------------------------------------------------------------------------
                 ! Communicate deposits between Master and procs
@@ -2753,19 +2769,22 @@ END FUNCTION order_val
                     kk1 = ndep + 1 ! index start after master's 
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                    DO kk=2, mpiprocs ! kk=1 is Master
+                    IF (ntiles > 1) THEN
+                       
+                       DO kk=2, mpiprocs ! kk=1 is Master
 
-                        IF (np_nlanded(kk) > 0) THEN 
+                          IF (np_nlanded(kk) > 0) THEN 
 
-                            kk2 = kk1 + np_nlanded(kk) -1                
+                             kk2 = kk1 + np_nlanded(kk) -1                
 
-                            ! WRITE(msg, '(4(i8,1x))') kk, np_nlanded(kk), kk1, kk2
-                            ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd master kk, np_dep, k1:k2: '//msg)
-                            np_landed_cnt(kk1:kk2) = fs_mpi_recvfrompatch_int(bsz=np_nlanded(kk), fromid=kk-1) 
-                            np_landed_risk(kk1:kk2)= fs_mpi_recvfrompatch_real(bsz=np_nlanded(kk), fromid=kk-1)
-                            kk1 = kk1 + np_nlanded(kk)
-                        ENDIF
-                    ENDDO
+                             ! WRITE(msg, '(4(i8,1x))') kk, np_nlanded(kk), kk1, kk2
+                             ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd master kk, np_dep, k1:k2: '//msg)
+                             np_landed_cnt(kk1:kk2) = fs_mpi_recvfrompatch_int(bsz=np_nlanded(kk), fromid=kk-1) 
+                             np_landed_risk(kk1:kk2)= fs_mpi_recvfrompatch_real(bsz=np_nlanded(kk), fromid=kk-1)
+                             kk1 = kk1 + np_nlanded(kk)
+                          ENDIF
+                       ENDDO
+                    ENDIF
 #endif
 
                     !-------------------------------------------------------------------------------
@@ -2790,18 +2809,20 @@ END FUNCTION order_val
                     kk1 = ndep + 1 ! index start after master's 
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-                    DO kk=2, mpiprocs ! kk=1 is Master
+                    IF (ntiles > 1) THEN
+                       DO kk=2, mpiprocs ! kk=1 is Master
 
-                        IF (np_nlanded(kk) > 0) THEN 
+                          IF (np_nlanded(kk) > 0) THEN 
 
-                            kk2 = kk1 + np_nlanded(kk) -1                
+                             kk2 = kk1 + np_nlanded(kk) -1                
 
-                            CALL fs_mpi_sendbuff_real(sendto=kk-1, bsz=np_nlanded(kk), buff=np_frac_landed(kk1:kk2))
-                            CALL fs_mpi_sendbuff_real(sendto=kk-1, bsz=np_nlanded(kk), buff=np_lkhd(kk1:kk2))
+                             CALL fs_mpi_sendbuff_real(sendto=kk-1, bsz=np_nlanded(kk), buff=np_frac_landed(kk1:kk2))
+                             CALL fs_mpi_sendbuff_real(sendto=kk-1, bsz=np_nlanded(kk), buff=np_lkhd(kk1:kk2))
 
-                            kk1 = kk1 + np_nlanded(kk)
-                        ENDIF
-                    ENDDO
+                             kk1 = kk1 + np_nlanded(kk)
+                          ENDIF
+                       ENDDO
+                    ENDIF
 #endif
                 ENDIF ! SUM(np_nlanded) > 0
                 !-------------------------------------------------------------------------------
@@ -2811,15 +2832,19 @@ END FUNCTION order_val
             !-------------------------------------------------------------------------------
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
-            IF (.NOT.(IamMaster) .AND. (ndep > 0)) THEN
+            IF (ntiles > 1) THEN
 
-                recv_frac_landed = fs_mpi_recvfrompatch_real(bsz=ndep, fromid=MasterId) 
-                fs_frac_landed(is:ie,js:je) = UNPACK(recv_frac_landed, MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
+               IF (.NOT.(IamMaster) .AND. (ndep > 0)) THEN
 
-                recv_spot_lkhd = fs_mpi_recvfrompatch_real(bsz=ndep, fromid=MasterId) 
-                fs_spotting_lkhd(is:ie,js:je) = UNPACK(recv_spot_lkhd, MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
+                  recv_frac_landed = fs_mpi_recvfrompatch_real(bsz=ndep, fromid=MasterId) 
+                  fs_frac_landed(is:ie,js:je) = UNPACK(recv_frac_landed, MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
 
+                  recv_spot_lkhd = fs_mpi_recvfrompatch_real(bsz=ndep, fromid=MasterId) 
+                  fs_spotting_lkhd(is:ie,js:je) = UNPACK(recv_spot_lkhd, MASK=landing_mask(is:ie,js:je), FIELD=ZERO_dp)
+
+               ENDIF
             ENDIF
+               
 #endif
 
             IF ((IamMaster) .AND. (ndep > 0)) THEN
@@ -2855,93 +2880,95 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+        IF (ntiles > 1) THEN
+           
+           ALLOCATE(nbr_id(neighbors))
+           nbr_id(:)=0
+           nbr_id(:)=fs_mpi_checkreceive(task_list=task_id, np=neighbors)
 
-        ALLOCATE(nbr_id(neighbors))
-        nbr_id(:)=0
-        nbr_id(:)=fs_mpi_checkreceive(task_list=task_id, np=neighbors)
+           nbr_sum = SUM(nbr_id)
+           IF (nbr_sum > 0) THEN 
 
-        nbr_sum = SUM(nbr_id)
-        IF (nbr_sum > 0) THEN 
+              WRITE (msg,'(16(i4,1x))') ([task_id(ii), nbr_id(ii)], ii=1,neighbors)
+              CALL wrf_debug (wrfdbg,  'SPFire_driver mpi_check_receive (taskID, N): '//msg)
 
-            WRITE (msg,'(16(i4,1x))') ([task_id(ii), nbr_id(ii)], ii=1,neighbors)
-            CALL wrf_debug (wrfdbg,  'SPFire_driver mpi_check_receive (taskID, N): '//msg)
+              ! Receiving positions, id, dt
+              ALLOCATE(r_x(nbr_sum), r_y(nbr_sum), r_z(nbr_sum), r_id(nbr_sum), r_src(nbr_sum), r_dt(nbr_sum))
+              r_id(:) = 0
+              r_src(:) = 0
+              r_dt(:) = 0
+              r_x(:) = ZERO_dp
+              r_y(:) = ZERO_dp
+              r_z(:) = ZERO_dp
 
-            ! Receiving positions, id, dt
-            ALLOCATE(r_x(nbr_sum), r_y(nbr_sum), r_z(nbr_sum), r_id(nbr_sum), r_src(nbr_sum), r_dt(nbr_sum))
-            r_id(:) = 0
-            r_src(:) = 0
-            r_dt(:) = 0
-            r_x(:) = ZERO_dp
-            r_y(:) = ZERO_dp
-            r_z(:) = ZERO_dp
+              ! Receiving p_propertieserties
+              ALLOCATE(r_p_m(nbr_sum), r_p_d(nbr_sum), r_p_e(nbr_sum), r_p_t(nbr_sum), r_p_v(nbr_sum))
+              ALLOCATE(fb_mdetv(nbr_sum))
 
-            ! Receiving p_propertieserties
-            ALLOCATE(r_p_m(nbr_sum), r_p_d(nbr_sum), r_p_e(nbr_sum), r_p_t(nbr_sum), r_p_v(nbr_sum))
-            ALLOCATE(fb_mdetv(nbr_sum))
+              CALL fs_mpi_recv(np_id=nbr_id, task_id=task_id, &
+                   r_x=r_x, r_y=r_y, r_z=r_z, &
+                   r_id=r_id, r_src=r_src, r_dt=r_dt, &
+                   r_p_m=r_p_m, &
+                   r_p_d=r_p_d, & 
+                   r_p_e=r_p_e, &
+                   r_p_t=r_p_t, & 
+                   r_p_v=r_p_v)
 
-            CALL fs_mpi_recv(np_id=nbr_id, task_id=task_id, &
-                                   r_x=r_x, r_y=r_y, r_z=r_z, &
-                                   r_id=r_id, r_src=r_src, r_dt=r_dt, &
-                                   r_p_m=r_p_m, &
-                                   r_p_d=r_p_d, & 
-                                   r_p_e=r_p_e, &
-                                   r_p_t=r_p_t, & 
-                                   r_p_v=r_p_v)
+              ! Assign values to array and release incoming particles
+              !release_mpi_ijk = RESHAPE([r_x,r_y,r_z], [nbr_sum,3])
+              fb_mdetv  = [(p_properties(r_p_m(kk), r_p_d(kk), r_p_e(kk), r_p_t(kk), r_p_v(kk)), kk=1,nbr_sum)]
 
-            ! Assign values to array and release incoming particles
-            !release_mpi_ijk = RESHAPE([r_x,r_y,r_z], [nbr_sum,3])
-            fb_mdetv  = [(p_properties(r_p_m(kk), r_p_d(kk), r_p_e(kk), r_p_t(kk), r_p_v(kk)), kk=1,nbr_sum)]
+              ! DO kk=1, nbr_sum
+              !     WRITE(msg,'(3(i6,1x),3(f12.6,1x))') r_id(kk), r_src(kk), r_dt(kk), r_x(kk), r_y(kk), r_z(kk)
+              !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER  >>> '// msg)
+              ! ENDDO
 
-            ! DO kk=1, nbr_sum
-            !     WRITE(msg,'(3(i6,1x),3(f12.6,1x))') r_id(kk), r_src(kk), r_dt(kk), r_x(kk), r_y(kk), r_z(kk)
-            !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER  >>> '// msg)
-            ! ENDDO
+              prior_br = active_br + 1 ! Array is packed so new particles will be assgned at this position
+              CALL generate_firebrands(&
+                   fs_p_id = fs_p_id, &
+                   fs_p_src = fs_p_src, &
+                   fs_p_dt = fs_p_dt, &
+                   fs_p_z  = fs_p_z,  &
+                   fs_p_x  = fs_p_x,  &
+                   fs_p_y  = fs_p_y,  &
+                   fs_gen_idmax    = fs_gen_idmax,    &
+                   myprocid = myprocid,        &
+                   active_br   = active_br,   &
+                   release_i = r_x, &
+                   release_j = r_y, &
+                   release_k = r_z, &
+                   release_dt = r_dt, &
+                   release_src = r_src, &
+                   release_prop= fb_mdetv, & 
+                   fs_p_prop   = fs_p_prop)
 
-            prior_br = active_br + 1 ! Array is packed so new particles will be assgned at this position
-            CALL generate_firebrands(&
-                        fs_p_id = fs_p_id, &
-                        fs_p_src = fs_p_src, &
-                        fs_p_dt = fs_p_dt, &
-                        fs_p_z  = fs_p_z,  &
-                        fs_p_x  = fs_p_x,  &
-                        fs_p_y  = fs_p_y,  &
-                        fs_gen_idmax    = fs_gen_idmax,    &
-                        myprocid = myprocid,        &
-                        active_br   = active_br,   &
-                        release_i = r_x, &
-                        release_j = r_y, &
-                        release_k = r_z, &
-                        release_dt = r_dt, &
-                        release_src = r_src, &
-                        release_prop= fb_mdetv, & 
-                        fs_p_prop   = fs_p_prop)
+              WRITE (msg,'(2(i8,1x))') active_br, fs_gen_idmax
+              CALL wrf_debug (wrfdbg, 'SPFire_driver mpi recv AFTER : ii, fs_gen_idmax >>> '// msg)
 
-            WRITE (msg,'(2(i8,1x))') active_br, fs_gen_idmax
-            CALL wrf_debug (wrfdbg, 'SPFire_driver mpi recv AFTER : ii, fs_gen_idmax >>> '// msg)
+              fs_p_mass (prior_br:active_br) = r_p_m
+              fs_p_diam (prior_br:active_br) = r_p_d
+              fs_p_effd(prior_br:active_br) = r_p_e
+              fs_p_temp (prior_br:active_br) = r_p_t
+              fs_p_tvel (prior_br:active_br) = r_p_v
 
-            fs_p_mass (prior_br:active_br) = r_p_m
-            fs_p_diam (prior_br:active_br) = r_p_d
-            fs_p_effd(prior_br:active_br) = r_p_e
-            fs_p_temp (prior_br:active_br) = r_p_t
-            fs_p_tvel (prior_br:active_br) = r_p_v
+              ! DO kk=prior_br,prior_br+MIN(nbr_sum,5)
+              !     WRITE(msg,'(2(i6,1x),6(f12.6,1x))') fs_p_id(kk), fs_p_dt(kk), fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), fs_p_diam(kk), fs_p_temp(kk), fs_p_tvel(kk)
+              !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER2  >>> '// msg)
+              ! ENDDO
 
-            ! DO kk=prior_br,prior_br+MIN(nbr_sum,5)
-            !     WRITE(msg,'(2(i6,1x),6(f12.6,1x))') fs_p_id(kk), fs_p_dt(kk), fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), fs_p_diam(kk), fs_p_temp(kk), fs_p_tvel(kk)
-            !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER2  >>> '// msg)
-            ! ENDDO
+              DEALLOCATE(r_x, r_y, r_z, r_id, r_src, r_dt)
+              !DEALLOCATE(release_mpi_ijk)
+              DEALLOCATE(fb_mdetv)
+              DEALLOCATE(r_p_m, r_p_d, r_p_e, r_p_t, r_p_v)
 
-            DEALLOCATE(r_x, r_y, r_z, r_id, r_src, r_dt)
-            !DEALLOCATE(release_mpi_ijk)
-            DEALLOCATE(fb_mdetv)
-            DEALLOCATE(r_p_m, r_p_d, r_p_e, r_p_t, r_p_v)
-
-        ! ELSE         
-        !     CALL wrf_debug (wrfdbg,  'SPFire_driver mpi nothing to receive')
+              ! ELSE         
+              !     CALL wrf_debug (wrfdbg,  'SPFire_driver mpi nothing to receive')
+           ENDIF
+           DEALLOCATE(nbr_id)
+           !-------------------------------------------------------------------------------
+           ! DONE :)
+           !-------------------------------------------------------------------------------
         ENDIF
-        DEALLOCATE(nbr_id)
-        !-------------------------------------------------------------------------------
-        ! DONE :)
-        !-------------------------------------------------------------------------------
 #endif
         !===============================================================================
         ! Check history interval 
