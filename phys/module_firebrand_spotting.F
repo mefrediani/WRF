@@ -1500,6 +1500,7 @@ END FUNCTION order_val
         fs_p_x,                &
         fs_p_y,                &
         fs_p_z,                &
+        fs_gen_hist,           &
         fs_gen_inst,           &
         fs_p_mass,             &  
         fs_p_diam,             & 
@@ -1576,7 +1577,7 @@ END FUNCTION order_val
         REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
-        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_inst
+        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_hist, fs_gen_inst
         REAL,    INTENT(INOUT), DIMENSION(ifps:ifpe,jfps:jfpe)  :: fs_fire_ROSdt
 
         !-------------------------------------------------------------------------------
@@ -1722,9 +1723,10 @@ END FUNCTION order_val
             fs_fuel_spotting_risk(:,:) = ZERO_dp
             fs_count_reset      = .FALSE.
 
-            fs_gen_inst(is:ie,js:je) = 0
+            fs_gen_hist(is:ie,js:je) = 0
         ENDIF
 
+        fs_gen_inst(is:ie,js:je) = 0
         fs_landing_mask(ims:ime,jms:jme) = 0
 
         !===============================================================================
@@ -1769,8 +1771,8 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
 
         firepts = 0
-        ! fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) + grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
-        fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
+        !fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
+        fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = grid%ros_front(ifps:ifpe,jfps:jfpe)
         ! Accumulation prioritises firebrands from gridpts mostly burnt vs recently ignited
 
         !-------------------------------------------------------------------------------
@@ -2093,8 +2095,10 @@ END FUNCTION order_val
 
                 DO kk=1,relpts ! track release points between history outputs
 
-                    fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) = &
-                        fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) + 1
+                    fs_gen_hist(INT(release_i(kk)),INT(release_j(kk))) = &
+                        fs_gen_hist(INT(release_i(kk)),INT(release_j(kk))) + 1
+
+                    fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) = 1
 
                 ENDDO
             
@@ -2124,8 +2128,10 @@ END FUNCTION order_val
             
                 CALL wrf_debug (wrfdbg, 'SPFire_driver_call_generate_firebrands ----------------------------------------- ') 
 
-                IF (active_br + COUNT( INT(release_i) > 0 )  > fs_array_maxsize) & 
-                    CALL wrf_debug (wrfdbg, 'SPFire_driver_release: brand array is full, cannot release new brands') 
+                IF (active_br + COUNT( INT(release_i) > 0 )  > fs_array_maxsize) THEN
+                   CALL wrf_debug (0, 'SPFire_driver_release: firebrand array is full, cannot release new brands') 
+                   CALL wrf_error_fatal('SPFire_driver_release: active firebrands plus new releases exceed fs_array_maxsize')
+                ENDIF
                 
                 CALL generate_firebrands(&
                     fs_p_id = fs_p_id, &
