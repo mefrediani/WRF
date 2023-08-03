@@ -1766,6 +1766,8 @@ END FUNCTION order_val
         firebrand_dens      = cf%fs_firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
         firebrand_dens_char = cf%fs_firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
 
+        CALL wrf_debug (0, 'SPFire checkpoint 1.1')
+
         !===============================================================================
         ! Firebrand Generation
         !===============================================================================
@@ -1782,8 +1784,10 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
         ! Updated fuel moisture from WRF-fire
         !-------------------------------------------------------------------------------
+        CALL wrf_debug (0, 'SPFire checkpoint 1.2')
 
         fmcg_2df(ifps:ifpe,jfps:jfpe) = grid%fmc_g(ifps:ifpe,jfps:jfpe)
+        CALL wrf_debug (0, 'SPFire checkpoint 1.3')
 
         !===============================================================================
         ! Firebrand Generation - Release Firebrands - Part 1
@@ -1800,6 +1804,8 @@ END FUNCTION order_val
 
             LimPot = 0.000001_dp ! 1e-6
             MeanPot = ZERO_dp 
+
+            CALL wrf_debug (0, 'SPFire checkpoint 1.4')
 
             IF (firepts > 0) THEN 
 
@@ -1828,6 +1834,8 @@ END FUNCTION order_val
                                                              factor=fcat_factor(ifps:ifpe,jfps:jfpe),&
                                                              fire_rate=fs_fire_ROSdt(ifps:ifpe,jfps:jfpe)), &
                                                          SHAPE(fcat_fr)) 
+
+                CALL wrf_debug (0, 'SPFire checkpoint 1.5')
 
                 ! Calculate Release Potential for each burning fuel cat
                 !-------------------------------------------------------------------------------
@@ -2031,6 +2039,7 @@ END FUNCTION order_val
             !===============================================================================
 
             IF (Ngrdpts > 0) THEN
+               CALL wrf_debug (0, 'SPFire checkpoint 1.6')
 
 !                 !-------------------------------------------------------------------------------
 !                 ! Receive Potential Threshold from Master 
@@ -2075,6 +2084,8 @@ END FUNCTION order_val
                 !------------------------------------------------------------------------------- 
                 ! Convert release locations to met grid
 
+                CALL wrf_debug (0, 'SPFire checkpoint 1.7')
+
                 ALLOCATE(release_i(relpts*fs_gen_levels), &
                          release_j(relpts*fs_gen_levels), &
                          release_k(relpts*fs_gen_levels), &
@@ -2095,6 +2106,7 @@ END FUNCTION order_val
                                     pk=release_k(1:relpts), & ! max height
                                     nij=release_n)
 
+                CALL wrf_debug (0, 'SPFire checkpoint 1.8')
 
                 ! Adjust position to corresponding refined grid center
                 release_i(1:relpts) = release_i(1:relpts) + dp05/grid%sr_x
