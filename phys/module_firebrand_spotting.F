@@ -1715,6 +1715,8 @@ END FUNCTION order_val
         IF (grid%itimestep == 1) &
             fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) =0.0_dp
 
+        CALL wrf_debug (0, 'SPFire checkpoint 1')
+
         !===============================================================================
         ! Reset array after writting history file
         !===============================================================================
@@ -2607,6 +2609,8 @@ END FUNCTION order_val
         
         IF ((hist_flag) .AND. (grid%itimestep > 1)) THEN
 
+           CALL wrf_debug (0, 'SPFire checkpoint 2')
+
             fs_count_reset = .TRUE. ! true
             fs_frac_landed(ims:ime, jms:jme) = ZERO_dp
             fs_spotting_lkhd(ims:ime, jms:jme) = ZERO_dp
@@ -2627,6 +2631,8 @@ END FUNCTION order_val
 
             ! WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
             ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd: deposit points, fire points: '//msg)
+
+            CALL wrf_debug (0, 'SPFire checkpoint 3')
 
             IF (ndep > 0) THEN ! deposited anywhere
 
@@ -2652,6 +2658,8 @@ END FUNCTION order_val
 
                 ! Were these firebrand deposited outside the fire area?
                 !-------------------------------------------------------------------------------
+
+                CALL wrf_debug (0, 'SPFire checkpoint 4')
 
                 IF (ndep > 0) THEN 
 
@@ -2699,9 +2707,12 @@ END FUNCTION order_val
                     ! Prepare for MPI
                     !-------------------------------------------------------------------------------
 
+                    CALL wrf_debug (0, 'SPFire checkpoint 5')
+
                     ALLOCATE(landing_cnt(ndep), landed_risk(ndep), recv_spot_lkhd(ndep), recv_frac_landed(ndep))
                     landing_cnt = PACK(fs_count_landed_hist(is:ie,js:je), landing_mask(is:ie,js:je))
                     landed_risk = PACK(fs_fuel_spotting_risk(is:ie,js:je), landing_mask(is:ie,js:je))
+                    CALL wrf_debug (0, 'SPFire checkpoint 6')
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
                     IF (ntiles > 1) THEN
