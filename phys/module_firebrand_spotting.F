@@ -1829,7 +1829,7 @@ END FUNCTION order_val
 
                 CALL wrf_debug (0, 'SPFire checkpoint 1.4.2')
 
-                fcat_factor(ifps:ifpe,jfps:jfpe)= firebrand_gen_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE, SHAPE(fcat_fr)) 
+                fcat_factor(ifps:ifpe,jfps:jfpe)= 1 !crashing: firebrand_gen_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE, SHAPE(fcat_fr)) 
 
                 CALL wrf_debug (0, 'SPFire checkpoint 1.4.3')
 
@@ -2692,6 +2692,8 @@ END FUNCTION order_val
                     spotthreat_fr(:,:) = ZERO_dp
 
                     IF (.NOT. ALLOCATED(fcat_fr)) THEN 
+                       CALL wrf_debug (0, 'SPFire checkpoint 4.1')
+
                         ALLOCATE(fcat_fr(ifps:ifpe,jfps:jfpe))
                         fcat_fr(:,:) = ZERO_dp                    
                         fcat_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(&
@@ -2701,12 +2703,13 @@ END FUNCTION order_val
                     ENDIF
                     !WRITE(msg, *) MAXVAL(fcat_fr), MINVAL(fcat_fr)
                     ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd fcat max,min       '//msg)
-
-                    spotthreat_fr(ifps:ifpe,jfps:jfpe)= spotting_threat_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE(SHAPE(fuel_spotting_risk_fr))                  
+                    CALL wrf_debug (0, 'SPFire checkpoint 4.2')
+                    spotthreat_fr(ifps:ifpe,jfps:jfpe)= 1 ! crashing: spotting_threat_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE(SHAPE(fuel_spotting_risk_fr))                  
                                                              ! get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
                                                              !     cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe))), & 
                     ! WRITE(msg, *) MAXVAL(spotthreat_fr), MINVAL(spotthreat_fr)
                     ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd spotting_threat_factor max,min'//msg)
+                    CALL wrf_debug (0, 'SPFire checkpoint 4.3')
 
                     fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(&
                                                         fuel_spotting_risk(&
@@ -2715,9 +2718,12 @@ END FUNCTION order_val
                                                              !fuel_mcg=grid%fmcg2df(ifps:ifpe,jfps:jfpe), & 
                                                              factor=spotthreat_fr(ifps:ifpe,jfps:jfpe)), &
                                                              SHAPE(fuel_spotting_risk_fr)) !, fuel_mcg=grid%fmcg2df)
+                    CALL wrf_debug (0, 'SPFire checkpoint 4.4')
 
                     fs_fuel_spotting_risk(is:ie,js:je) = fire2tile(fr_arr=fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe), &
                                                          dsx=grid%sr_x,dsy=grid%sr_y)
+                    CALL wrf_debug (0, 'SPFire checkpoint 4.5')
+
                     DEALLOCATE(fcat_fr)
 
                     !-------------------------------------------------------------------------------
