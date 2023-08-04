@@ -1688,7 +1688,6 @@ END FUNCTION order_val
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
         IF (mpiprocs == 0) THEN
            CALL fs_mpi_init(grid) ! should be called in fspotting_init (?)
-           CALL wrf_debug (0, 'SPFire back from fs_mpi_init')
         ENDIF
 
         ntiles = mpiprocs
@@ -1714,8 +1713,6 @@ END FUNCTION order_val
 
         IF (grid%itimestep == 1) &
             fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) =0.0_dp
-
-        CALL wrf_debug (0, 'SPFire checkpoint 1')
 
         !===============================================================================
         ! Reset array after writting history file
@@ -1766,7 +1763,6 @@ END FUNCTION order_val
         firebrand_dens      = cf%fs_firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
         firebrand_dens_char = cf%fs_firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
 
-        CALL wrf_debug (0, 'SPFire checkpoint 1.1')
 
         !===============================================================================
         ! Firebrand Generation
@@ -1784,10 +1780,8 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
         ! Updated fuel moisture from WRF-fire
         !-------------------------------------------------------------------------------
-        CALL wrf_debug (0, 'SPFire checkpoint 1.2')
 
         fmcg_2df(ifps:ifpe,jfps:jfpe) = grid%fmc_g(ifps:ifpe,jfps:jfpe)
-        CALL wrf_debug (0, 'SPFire checkpoint 1.3')
 
         !===============================================================================
         ! Firebrand Generation - Release Firebrands - Part 1
@@ -1805,8 +1799,6 @@ END FUNCTION order_val
             LimPot = 0.000001_dp ! 1e-6
             MeanPot = ZERO_dp 
 
-            CALL wrf_debug (0, 'SPFire checkpoint 1.4')
-
             IF (firepts > 0) THEN 
 
                 WRITE (msg,'(1(i6,1x))') firepts
@@ -1821,17 +1813,11 @@ END FUNCTION order_val
                 RelPot(:,:) = ZERO_dp
                 fcat_factor(:,:) = ZERO_dp
 
-                CALL wrf_debug (0, 'SPFire checkpoint 1.4.1')
-
                 fcat_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
                                                                     cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe)), &
                                                        SHAPE(fcat_fr))
 
-                CALL wrf_debug (0, 'SPFire checkpoint 1.4.2')
-
                 fcat_factor(ifps:ifpe,jfps:jfpe)= 1 !crashing: firebrand_gen_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE, SHAPE(fcat_fr)) 
-
-                CALL wrf_debug (0, 'SPFire checkpoint 1.4.3')
 
                 RelPot(ifps:ifpe,jfps:jfpe) = RESHAPE(firebrand_gen_potential(&
                                                              fuel_fgi=grid%fgip(ifps:ifpe,jfps:jfpe), &
@@ -1840,8 +1826,6 @@ END FUNCTION order_val
                                                              factor=fcat_factor(ifps:ifpe,jfps:jfpe),&
                                                              fire_rate=fs_fire_ROSdt(ifps:ifpe,jfps:jfpe)), &
                                                          SHAPE(fcat_fr)) 
-
-                CALL wrf_debug (0, 'SPFire checkpoint 1.5')
 
                 ! Calculate Release Potential for each burning fuel cat
                 !-------------------------------------------------------------------------------
@@ -2044,7 +2028,6 @@ END FUNCTION order_val
             !===============================================================================
 
             IF (Ngrdpts > 0) THEN
-               CALL wrf_debug (0, 'SPFire checkpoint 1.6')
 
 !                 !-------------------------------------------------------------------------------
 !                 ! Receive Potential Threshold from Master 
@@ -2089,8 +2072,6 @@ END FUNCTION order_val
                 !------------------------------------------------------------------------------- 
                 ! Convert release locations to met grid
 
-                CALL wrf_debug (0, 'SPFire checkpoint 1.7')
-
                 ALLOCATE(release_i(relpts*fs_gen_levels), &
                          release_j(relpts*fs_gen_levels), &
                          release_k(relpts*fs_gen_levels), &
@@ -2110,8 +2091,6 @@ END FUNCTION order_val
                                     pj=release_j(1:relpts), &
                                     pk=release_k(1:relpts), & ! max height
                                     nij=release_n)
-
-                CALL wrf_debug (0, 'SPFire checkpoint 1.8')
 
                 ! Adjust position to corresponding refined grid center
                 release_i(1:relpts) = release_i(1:relpts) + dp05/grid%sr_x
@@ -2196,8 +2175,6 @@ END FUNCTION order_val
                 IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
             ENDIF ! Ngrdpts > 0                                    
-
-            CALL wrf_debug (0, 'SPFire checkpoint 1.9')
 
             fs_fire_ROSdt(:, :) = ZERO_dp
             relpts = 0
@@ -2628,8 +2605,6 @@ END FUNCTION order_val
         
         IF ((hist_flag) .AND. (grid%itimestep > 1)) THEN
 
-           CALL wrf_debug (0, 'SPFire checkpoint 2')
-
             fs_count_reset = .TRUE. ! true
             fs_frac_landed(ims:ime, jms:jme) = ZERO_dp
             fs_spotting_lkhd(ims:ime, jms:jme) = ZERO_dp
@@ -2650,8 +2625,6 @@ END FUNCTION order_val
 
             ! WRITE(msg, '(i8,1x,i12)') ndep, COUNT(fs_fire_area(is:ie,js:je)> ZERO_dp)
             ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd: deposit points, fire points: '//msg)
-
-            CALL wrf_debug (0, 'SPFire checkpoint 3')
 
             IF (ndep > 0) THEN ! deposited anywhere
 
@@ -2678,8 +2651,6 @@ END FUNCTION order_val
                 ! Were these firebrand deposited outside the fire area?
                 !-------------------------------------------------------------------------------
 
-                CALL wrf_debug (0, 'SPFire checkpoint 4')
-
                 IF (ndep > 0) THEN 
 
                     ! Calculate fuel risk 
@@ -2692,7 +2663,6 @@ END FUNCTION order_val
                     spotthreat_fr(:,:) = ZERO_dp
 
                     IF (.NOT. ALLOCATED(fcat_fr)) THEN 
-                       CALL wrf_debug (0, 'SPFire checkpoint 4.1')
 
                         ALLOCATE(fcat_fr(ifps:ifpe,jfps:jfpe))
                         fcat_fr(:,:) = ZERO_dp                    
@@ -2703,13 +2673,12 @@ END FUNCTION order_val
                     ENDIF
                     !WRITE(msg, *) MAXVAL(fcat_fr), MINVAL(fcat_fr)
                     ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd fcat max,min       '//msg)
-                    CALL wrf_debug (0, 'SPFire checkpoint 4.2')
+
                     spotthreat_fr(ifps:ifpe,jfps:jfpe)= 1 ! crashing: spotting_threat_factor(fcat_fr(ifps:ifpe,jfps:jfpe)) !RESHAPE(SHAPE(fuel_spotting_risk_fr))                  
                                                              ! get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
                                                              !     cat=grid%nfuel_cat(ifps:ifpe,jfps:jfpe))), & 
                     ! WRITE(msg, *) MAXVAL(spotthreat_fr), MINVAL(spotthreat_fr)
                     ! CALL wrf_debug (wrfdbg, 'SPFire_lkhd spotting_threat_factor max,min'//msg)
-                    CALL wrf_debug (0, 'SPFire checkpoint 4.3')
 
                     fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe) = RESHAPE(&
                                                         fuel_spotting_risk(&
@@ -2718,11 +2687,9 @@ END FUNCTION order_val
                                                              !fuel_mcg=grid%fmcg2df(ifps:ifpe,jfps:jfpe), & 
                                                              factor=spotthreat_fr(ifps:ifpe,jfps:jfpe)), &
                                                              SHAPE(fuel_spotting_risk_fr)) !, fuel_mcg=grid%fmcg2df)
-                    CALL wrf_debug (0, 'SPFire checkpoint 4.4')
 
                     fs_fuel_spotting_risk(is:ie,js:je) = fire2tile(fr_arr=fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe), &
                                                          dsx=grid%sr_x,dsy=grid%sr_y)
-                    CALL wrf_debug (0, 'SPFire checkpoint 4.5')
 
                     DEALLOCATE(fcat_fr)
 
@@ -2732,12 +2699,9 @@ END FUNCTION order_val
                     ! Prepare for MPI
                     !-------------------------------------------------------------------------------
 
-                    CALL wrf_debug (0, 'SPFire checkpoint 5')
-
                     ALLOCATE(landing_cnt(ndep), landed_risk(ndep), recv_spot_lkhd(ndep), recv_frac_landed(ndep))
                     landing_cnt = PACK(fs_count_landed_hist(is:ie,js:je), landing_mask(is:ie,js:je))
                     landed_risk = PACK(fs_fuel_spotting_risk(is:ie,js:je), landing_mask(is:ie,js:je))
-                    CALL wrf_debug (0, 'SPFire checkpoint 6')
 
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
                     IF (ntiles > 1) THEN
