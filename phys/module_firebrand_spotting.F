@@ -41,7 +41,7 @@ MODULE module_firebrand_spotting
 
     INTEGER, PARAMETER :: dp = KIND(0.d0)      ! double precision
 
-    INTEGER, PARAMETER :: wrfdbg = 10    
+    INTEGER, PARAMETER :: wrfdbg = 0    
     ! Fuel parameters must match values from module_fr_phys.F: SUBROUTINE set_fuel_params(nfuel_cat0, nfuel_cat)
     INTEGER, PARAMETER :: no_fuel_cat = 14
     INTEGER, PARAMETER :: nf_sb = 204          ! maximum category on
@@ -106,6 +106,7 @@ MODULE module_firebrand_spotting
     INTEGER, SAVE :: fs_gen_levels      ! one per grid pt (may change if releasing at multiple levels)
     INTEGER, SAVE :: fs_gen_lim 
     INTEGER, SAVE :: fs_gen_dt
+    INTEGER, SAVE :: fs_num_tracks
 
     REAL,    SAVE :: firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
     REAL,    SAVE :: firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
@@ -138,6 +139,7 @@ MODULE module_firebrand_spotting
     INTEGER, SAVE :: ims, jms, ime, jme, kms, kme ! memory bounds
     INTEGER, SAVE :: is, ie, js, je, ks, ke       ! patch start/end 
     INTEGER, SAVE :: ifps, jfps, ifpe, jfpe       ! refined fire grid bounds
+    !INTEGER, SAVE :: ifms, jfms, ifme, jfme       ! refined fire grid bounds
 
 CONTAINS
 
@@ -174,7 +176,10 @@ CONTAINS
         fs_count_landed_hist,&
         fs_landing_mask,&
         fs_spotting_lkhd,&
-        fs_frac_landed)
+        fs_frac_landed,&
+        fs_fire_ROSdt)
+!        fs_trk)
+      
 
 !=============================================================
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
@@ -201,8 +206,11 @@ CONTAINS
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_mass, fs_p_diam, fs_p_effd
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel
-        REAL,     INTENT(INOUT), DIMENSION(ims:,jms:)  :: fs_count_landed_all, fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
-        INTEGER,  INTENT(INOUT), DIMENSION(ims:,jms:) :: fs_landing_mask
+        REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_all, fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
+        INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
+
+!        REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_trk
+        REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_fire_ROSdt
 
         !-------------------------------------------------------------------------------
 
@@ -213,6 +221,7 @@ CONTAINS
         fs_gen_levels    = cf%fs_firebrand_gen_levels
         fs_gen_lim       = cf%fs_firebrand_gen_lim
         fs_gen_dt        = cf%fs_firebrand_gen_dt
+        fs_num_tracks    = cf%fs_num_tracks
 
         fmt = '(A,1x,I6)' 
         WRITE (amsg(1),*)   'SPFire_init: fspotting_em_init'
@@ -252,17 +261,20 @@ CONTAINS
 
         fs_last_gen_dt = 0
         fs_gen_idmax   = 0
-        fs_p_id    = 0
-        fs_p_dt    = 0
-        fs_p_src   = 0
-        fs_p_x     = 0.0_dp
-        fs_p_y     = 0.0_dp
-        fs_p_z     = 0.0_dp
-        fs_p_mass  = 0.0_dp
-        fs_p_diam  = 0.0_dp
-        fs_p_effd  = 0.0_dp
-        fs_p_temp  = 0.0_dp
-        fs_p_tvel  = 0.0_dp
+
+        fs_p_id  = 0
+        fs_p_dt  = 0
+        fs_p_src = 0
+        fs_p_x  = 0.0_dp
+        fs_p_y  = 0.0_dp
+        fs_p_z  = 0.0_dp
+        fs_p_mass = 0.0_dp
+        fs_p_diam = 0.0_dp
+        fs_p_effd = 0.0_dp
+        fs_p_temp = 0.0_dp
+        fs_p_tvel = 0.0_dp
+
+!        fs_trk(3,fs_num_tracks)   = 0.0_dp
 
         fs_landing_mask(:,:) = 0
         fs_count_landed_all (:,:) = 0.0_dp
@@ -270,8 +282,7 @@ CONTAINS
         fs_spotting_lkhd(:,:) = 0.0_dp
         fs_frac_landed(:,:)   = 0.0_dp
 
-        !fs_fire_ROSdt(:,:) = 0.0_dp
-        !fs_gen_inst(:,:) = 0
+        fs_fire_ROSdt(:,:) = 0.0_dp
 
         !-------------------------------------------------------------------------------
 
@@ -1502,6 +1513,7 @@ END FUNCTION order_val
         fs_p_z,                &
         fs_gen_hist,           &
         fs_gen_inst,           &
+        fs_gen_inst_fr,        &
         fs_p_mass,             &  
         fs_p_diam,             & 
         fs_p_effd,             & 
@@ -1518,6 +1530,7 @@ END FUNCTION order_val
         fs_frac_landed,        &
         fs_fuel_spotting_risk, &
         fs_count_reset)
+!        fs_trk)
 
 
         !-------------------------------------------------------------------------------
@@ -1571,15 +1584,17 @@ END FUNCTION order_val
         INTEGER, INTENT(INOUT)  :: fs_last_gen_dt, fs_gen_idmax
 
         ! Firebrand Spotting Particle Properties (fs_p_*)
-        INTEGER, INTENT(INOUT), DIMENSION(:)    :: fs_p_id, fs_p_src, fs_p_dt
-        REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
-        REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_mass, fs_p_diam, fs_p_effd
-        REAL,    INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel
+        INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id, fs_p_src, fs_p_dt
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_mass, fs_p_diam, fs_p_effd
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_temp, fs_p_tvel
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
         INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_hist, fs_gen_inst
-        REAL,    INTENT(INOUT), DIMENSION(ifps:ifpe,jfps:jfpe)  :: fs_fire_ROSdt
+        REAL,    INTENT(INOUT), DIMENSION(ifps:ifpe,jfps:jfpe) :: fs_fire_ROSdt ! fire memory bounds, not fire tile bounds
+        INTEGER, INTENT(INOUT), DIMENSION(ifps:ifpe,jfps:jfpe) :: fs_gen_inst_fr
 
+!        REAL,     INTENT(INOUT), DIMENSION(3,1:fs_num_tracks)    :: fs_trk
         !-------------------------------------------------------------------------------
         ! Parameters
         !-------------------------------------------------------------------------------
@@ -1645,7 +1660,7 @@ END FUNCTION order_val
         ! Note: 
         ! Variables for tile, memory, and domain bounds are in module scope & are assigned in firebrand_spotting_init
 
-        INTEGER :: kk, pp, ii ! counters        
+        INTEGER :: kk, pp, ii, jj ! counters        
         INTEGER :: kk1, kk2, k_end
         INTEGER :: active_br, prior_br, nresets, idmax, firepts, nbr_sum
         REAL    :: rdx, rdy, dt, sr_xy ! grid length (1/dx) and wrf's time-step
@@ -1656,7 +1671,7 @@ END FUNCTION order_val
         REAL    :: firebrand_gen_prop_diam, firebrand_gen_prop_effd
         REAL    :: firebrand_gen_prop_temp, firebrand_gen_prop_tvel 
         INTEGER :: levrand_seed
-
+        REAL    :: ROS_gen_thresh
         !-------------------------------------------------------------------------------
         ! MPI local Variables (some variables are in module scope)
         !-------------------------------------------------------------------------------
@@ -1711,8 +1726,8 @@ END FUNCTION order_val
         fs_last_gen_dt = fs_last_gen_dt + 1
         active_br = COUNT( fs_p_id > 0 )
 
-        IF (grid%itimestep == 1) &
-            fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) =0.0_dp
+        ! IF (grid%itimestep == 1) &
+        !     fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) =0.0_dp
 
         !===============================================================================
         ! Reset array after writting history file
@@ -1728,6 +1743,7 @@ END FUNCTION order_val
         ENDIF
 
         fs_gen_inst(is:ie,js:je) = 0
+        fs_gen_inst_fr(ifps:ifpe,jfps:jfpe) = 0
         fs_landing_mask(ims:ime,jms:jme) = 0
 
         !===============================================================================
@@ -1763,19 +1779,9 @@ END FUNCTION order_val
         firebrand_dens      = cf%fs_firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
         firebrand_dens_char = cf%fs_firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
 
-
-        !===============================================================================
-        ! Firebrand Generation
-        !===============================================================================
-
-        !-------------------------------------------------------------------------------
-        ! Accumulate burn rate between generation intervals
-        !-------------------------------------------------------------------------------
-
+        ROS_gen_thresh = cf%fs_ROSthresh
+        fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) = ZERO_dp
         firepts = 0
-        !fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = grid%burnt_area_dt(ifps:ifpe,jfps:jfpe)
-        fs_fire_ROSdt(ifps:ifpe, jfps:jfpe) = grid%ros_front(ifps:ifpe,jfps:jfpe)
-        ! Accumulation prioritises firebrands from gridpts mostly burnt vs recently ignited
 
         !-------------------------------------------------------------------------------
         ! Updated fuel moisture from WRF-fire
@@ -1790,8 +1796,18 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
         ! When a new release is due, calculate fraction of release by fuel category
         !-------------------------------------------------------------------------------
+        IF (fs_last_gen_dt < fs_gen_dt) CALL wrf_debug (wrfdbg, 'SPFire will not release')
 
         IF (fs_last_gen_dt >= fs_gen_dt) THEN  
+
+            do ii=ifps, ifpe
+               do jj=jfps,jfpe
+                  if (grid%ros_front(ii,jj) >= ROS_gen_thresh) fs_fire_ROSdt(ii,jj) = grid%ros_front(ii,jj) 
+               enddo
+            enddo
+
+            ! WRITE (msg,'(1(f6.2,1x,i6))') ROS_gen_thresh, COUNT(fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) > ZERO_dp)       
+            ! CALL wrf_debug (wrfdbg, 'SPFire ROS_gen_thresh, COUNT(ROS>thr): '//msg)
 
             firepts = COUNT(fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) > ZERO_dp)
             Ngrdpts = 0 ! Number of active fire points of valid fuel categories
@@ -2044,7 +2060,7 @@ END FUNCTION order_val
                 !------------------------------------------------------------------------------- 
                 ! Assign release from the various fuel cat to corresponding gridpts
 
-                !CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts>0 --------------------------------------------- ') 
+                CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts>0 --------------------------------------------- ') 
 
                 ALLOCATE(n_rel_fr2d(ifps:ifpe, jfps:jfpe))
                 n_rel_fr2d(ifps:ifpe, jfps:jfpe) = 0
@@ -2065,6 +2081,10 @@ END FUNCTION order_val
                 ! update relpts to represent value assigned to gridpts 
 
                 relpts = COUNT(n_rel_fr2d(ifps:ifpe,jfps:jfpe)>0) ! Limits to 1 release per refined gridpt, at various heights 
+
+                fs_gen_inst_fr(:,:) = 0
+                fs_gen_inst_fr(:,:) = n_rel_fr2d(:,:)
+
 
                 WRITE(msg, '(1(i8,1x))') relpts
                 CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts: '//msg)
@@ -2157,7 +2177,7 @@ END FUNCTION order_val
                 !-------------------------------------------------------------------------------
 
                 WRITE (msg,'(i8)') active_br
-                CALL wrf_debug (wrfdbg, 'SPFire_driver: Active brands: '// msg )
+                CALL wrf_debug (wrfdbg, 'SPFire_rel: Active brands: '// msg )
 
                 IF (cf%trackember) THEN
                 
@@ -2172,11 +2192,10 @@ END FUNCTION order_val
                 ENDIF
                 !-------------------------------------------------------------------------------
 
-                IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
+                IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_rel: Active brands do not match!')
 
             ENDIF ! Ngrdpts > 0                                    
 
-            fs_fire_ROSdt(:, :) = ZERO_dp
             relpts = 0
             fs_last_gen_dt = 0 ! Reset release timestep counter
             IF( ALLOCATED(fcat_fr))     DEALLOCATE(fcat_fr)
@@ -2210,7 +2229,7 @@ END FUNCTION order_val
               CALL fs_mpi_nothing2send(sendto=upright_id)
               CALL fs_mpi_nothing2send(sendto=downleft_id)
               CALL fs_mpi_nothing2send(sendto=downright_id)
-              !CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
+              CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
 
            ENDIF
         ENDIF
@@ -2223,6 +2242,7 @@ END FUNCTION order_val
         !===============================================================================
         ! Transport active firebrands
         !===============================================================================
+        IF (active_br == 0) CALL wrf_debug (wrfdbg, 'SPFire nothing to transport')
 
         IF (active_br > 0) THEN 
 
@@ -2556,6 +2576,10 @@ END FUNCTION order_val
             
             active_br = COUNT( fs_p_id > 0 )
 
+            ! fs_trk(1, 1:cf%fs_num_tracks) = fs_p_x(1:cf%fs_num_tracks)
+            ! fs_trk(2, 1:cf%fs_num_tracks) = fs_p_y(1:cf%fs_num_tracks)
+            ! fs_trk(3, 1:cf%fs_num_tracks) = fs_p_z(1:cf%fs_num_tracks)
+
             WRITE (msg,'(1(i8,1x))') active_br
             CALL wrf_debug (wrfdbg, 'SPFire_driver pack AFTER mpi_send2neighbors active_br >>> '// msg)
 
@@ -2565,6 +2589,21 @@ END FUNCTION order_val
         !===============================================================================            
         ! Active_br work done ;)
         !===============================================================================            
+        WRITE (msg, '(i8,1x,i8)') COUNT( fs_p_id > 0), active_br
+        CALL wrf_debug (wrfdbg, 'SPFire COUNT( fs_p_id > 0), active_br: '//msg)
+
+        IF (active_br /= COUNT( fs_p_id > 0 ) ) THEN
+           DO kk=1,fs_array_maxsize
+              IF (fs_p_id(kk) > 0) THEN
+
+                 WRITE (msg,'(3(i16,1x),i10,1x,3(f12.6,1x))') &
+                      kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
+                      fs_p_x(kk), fs_p_y(kk), fs_p_z(kk)
+                 CALL wrf_debug (0, 'SPFire debug: '//msg)
+              ENDIF
+           ENDDO
+        ENDIF
+
         IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
         !===============================================================================            
@@ -3115,14 +3154,14 @@ END FUNCTION order_val
             xp1 = xp_m1 * mf(FLOOR(xp(pp)),FLOOR(yp(pp))) ! 2 pass will account for grid pt changes in mf & u 
             yp1 = yp_m1 * mf(FLOOR(xp(pp)),FLOOR(yp(pp)))
 
-            IF((ABS(xp1-xp(pp)) > 2.0) .OR. (ABS(yp1-yp(pp)) > 2.0)) THEN
-                WRITE (msg,'(2(i4,1x),7(f10.6,1x))') pp, dtp(pp), xp(pp), yp(pp), zp0, &
-                                                     uvw2p(1), uvw2p(2), uvw2p(3), dt ! 
-                zout(pp) = ZERO_dp   
-                xout(pp) = ZERO_dp 
-                yout(pp) = ZERO_dp 
-                CYCLE
-            ENDIF
+            ! IF((ABS(xp1-xp(pp)) > 2.0) .OR. (ABS(yp1-yp(pp)) > 2.0)) THEN
+            !     WRITE (msg,'(2(i4,1x),7(f10.6,1x))') pp, dtp(pp), xp(pp), yp(pp), zp0, &
+            !                                          uvw2p(1), uvw2p(2), uvw2p(3), dt ! 
+            !     zout(pp) = ZERO_dp   
+            !     xout(pp) = ZERO_dp 
+            !     yout(pp) = ZERO_dp 
+            !     CYCLE
+            ! ENDIF
 
             !-------------------------------------------------------------------------------
             ! Convert z position from meters to k-fractional
@@ -3178,14 +3217,14 @@ END FUNCTION order_val
                 xp2 = xp_m2 * mf(FLOOR(xp1),FLOOR(yp1))
                 yp2 = yp_m2 * mf(FLOOR(xp1),FLOOR(yp1))
                 
-                IF((ABS(xp2-xp1) > 2.0) .OR. (ABS(yp2-yp1) > 2.0)) THEN
-                    WRITE (msg,'(2(i4,1x),7(f10.6,1x))') pp, dtp(pp), xp1, yp1, zp1, &
-                                                         uvw2p(1), uvw2p(2), uvw2p(3), dt ! 
-                    zout(pp) = ZERO_dp   
-                    xout(pp) = ZERO_dp 
-                    yout(pp) = ZERO_dp 
-                CYCLE
-            ENDIF
+                ! IF((ABS(xp2-xp1) > 2.0) .OR. (ABS(yp2-yp1) > 2.0)) THEN
+                !     WRITE (msg,'(2(i4,1x),7(f10.6,1x))') pp, dtp(pp), xp1, yp1, zp1, &
+                !                                          uvw2p(1), uvw2p(2), uvw2p(3), dt ! 
+                !     zout(pp) = ZERO_dp   
+                !     xout(pp) = ZERO_dp 
+                !     yout(pp) = ZERO_dp 
+                !     CYCLE
+                !  ENDIF 
 
 
                 !-------------------------------------------------------------------------------

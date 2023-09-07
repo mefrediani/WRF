@@ -2215,7 +2215,10 @@ if(config_flags%ifire.eq.2)then
                fs_landing_mask       = grid%fs_landing_mask,     &
                fs_spotting_lkhd      = grid%fs_spotting_lkhd,    &
                fs_frac_landed        = grid%fs_frac_landed,      &
+               fs_fire_ROSdt         = grid%fs_fire_ROSdt,       &
                fs_count_reset        = grid%fs_count_reset)
+!               fs_trk                = grid%fs_trk)
+
            
            CALL wrf_debug ( 100 , 'start_em: firebrand_spotting_em_init ok ' )
        ENDIF

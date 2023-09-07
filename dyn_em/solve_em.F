@@ -4858,6 +4858,7 @@ BENCH_END(bc_2d_tim)
                fs_p_z        = grid%fs_p_z,         &
                fs_gen_hist   = grid%fs_gen_hist,    &
                fs_gen_inst   = grid%fs_gen_inst,    &
+               fs_gen_inst_fr= grid%fs_gen_inst_fr, &
                fs_p_mass     = grid%fs_p_mass,      &  
                fs_p_diam     = grid%fs_p_diam,      & 
                fs_p_effd     = grid%fs_p_effd,      & 
