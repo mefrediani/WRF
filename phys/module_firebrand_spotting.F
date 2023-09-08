@@ -139,7 +139,7 @@ MODULE module_firebrand_spotting
     INTEGER, SAVE :: ims, jms, ime, jme, kms, kme ! memory bounds
     INTEGER, SAVE :: is, ie, js, je, ks, ke       ! patch start/end 
     INTEGER, SAVE :: ifps, jfps, ifpe, jfpe       ! refined fire grid bounds
-    !INTEGER, SAVE :: ifms, jfms, ifme, jfme       ! refined fire grid bounds
+    INTEGER, SAVE :: ifms, jfms, ifme, jfme       ! refined fire grid bounds
 
 CONTAINS
 
@@ -240,6 +240,7 @@ CONTAINS
 
         CALL get_local_ijk(grid, & 
                            ifps=ifps, jfps=jfps, ifpe=ifpe, jfpe=jfpe, &
+                           ifms=ifms, jfms=jfms, ifme=ifme, jfme=jfme, &
                            ids=ids, jds=jds, ide=ide, jde=jde, kde=kde, &
                            ims=ims, jms=jms, ime=ime, jme=jme, kms=kms, kme=kme, &
                            ips=is,  jps=js,  ipe=ie,  jpe=je,  kps=ks,  kpe=ke)        
@@ -252,6 +253,9 @@ CONTAINS
 
         WRITE (msg,'(4(i6,1x))') ifps, ifpe, jfps, jfpe
         CALL wrf_debug (wrfdbg, 'SPFire_init fire refined bounds: '//msg)
+
+        WRITE (msg,'(4(i6,1x))') ifms, ifme, jfms, jfme
+        CALL wrf_debug (wrfdbg, 'SPFire_init fire refined memory bounds: '//msg)
 
 
         !-------------------------------------------------------------------------------
@@ -1591,8 +1595,8 @@ END FUNCTION order_val
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
         INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_hist, fs_gen_inst
-        REAL,    INTENT(INOUT), DIMENSION(ifps:ifpe,jfps:jfpe) :: fs_fire_ROSdt ! fire memory bounds, not fire tile bounds
-        INTEGER, INTENT(INOUT), DIMENSION(ifps:ifpe,jfps:jfpe) :: fs_gen_inst_fr
+        REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt ! fire memory bounds, not fire tile bounds
+        INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_gen_inst_fr
 
 !        REAL,     INTENT(INOUT), DIMENSION(3,1:fs_num_tracks)    :: fs_trk
         !-------------------------------------------------------------------------------
@@ -1780,7 +1784,7 @@ END FUNCTION order_val
         firebrand_dens_char = cf%fs_firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
 
         ROS_gen_thresh = cf%fs_ROSthresh
-        fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) = ZERO_dp
+        fs_fire_ROSdt(ifms:ifme,jfms:jfme) = ZERO_dp
         firepts = 0
 
         !-------------------------------------------------------------------------------
