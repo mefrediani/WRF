@@ -340,7 +340,6 @@ package  tracer_fire  tracer_opt==3       -             tracer:fire_smoke
 # Namelist 
 #
 rconfig   integer fs_array_maxsize               namelist,fire  1  100000       -      "fs_array_maxsize"              "Max number of active firebrands allowed"
-rconfig   integer fs_num_tracks                  namelist,fire  1    1000       -      "fs_num_tracks"                 "Number of firebrand tracks to include in output"
 rconfig   integer fs_firebrand_gen_lim           namelist,fire  1       0       -      "fs_firebrand_gen_lim"          "Limit number of firebrands generated at any given time (set it to 0 to turn spotting off)" 
 rconfig   integer fs_firebrand_gen_dt            namelist,fire  1       5       -      "fs_firebrand_gen_dt"           "Interval between consecutive generation cycles (dt is a factor applied to the model's time_step)" 
 rconfig   integer fs_firebrand_gen_levels        namelist,fire  1       5       -      "fs_firebrand_gen_levels"       "Number of vertical levels to generate firebrands (levels are distributed between 1 meter AGL and max height)"
@@ -366,8 +365,8 @@ rconfig  real     fs_ROSthresh                   namelist,fire  1     0.1       
 #
 #<Table>  <Dim>    <Order> <How defined>                <Coord-axis>  <Dimname in Datasets>
 dimspec   fs_maxsize  -  namelist=fs_array_maxsize           c        fs_maxsize
-#dimspec   fs_ntracks  -  namelist=fs_num_tracks              c        fs_ntracks
-#dimspec   p           -  constant=3                          c        position
+dimspec   fs_nfb      -  constant=1000                       c        fs_nfb
+dimspec   p           -  constant=11                         c        properties
 #
 # ------------------------------------------------------------------------------------------------------------------------
 # State 
@@ -376,18 +375,21 @@ dimspec   fs_maxsize  -  namelist=fs_array_maxsize           c        fs_maxsize
 state integer  fs_last_gen_dt            -         dyn_em      1         -      r  "fs_last_gen_dt"       "cycles since last firebrand generation" "count"
 state integer  fs_gen_idmax              -         dyn_em      1         -     rh  "fs_gen_idmax"         "highest ID number assigned to particle" "ID"
 state logical  fs_count_reset            -         dyn_em      1         -      r  "fs_count_reset"       "flag to reset deposit count"
-state  real    fs_fire_ROSdt	         *i*j      fire        1         z     rh  "fs_fire_ROSdt"	  "fire rate of spread (on fire refined grid) between generation cycles"
-state  real    fs_fire_area	         ij        misc        1         -     rh  "fs_fire_area"	  "fire area on meteorological grid"
-state  real    fs_fuel_spotting_risk	 ij        misc        1         -     rh  "fs_fuel_spotting_risk" "fuel risk for spotting likelihood"
+state  real    fs_fire_ROSdt	         *i*j      fire        1         z      h  "fs_fire_ROSdt"	  "fire rate of spread (on fire refined grid) between generation cycles"
+state  real    fs_fire_area	         ij        misc        1         -      h  "fs_fire_area"	  "fire area on meteorological grid"
+state  real    fs_fuel_spotting_risk	 ij        misc        1         -      h  "fs_fuel_spotting_risk" "fuel risk for spotting likelihood"
 state  real    fs_count_landed_all       ij        misc        1         -     rh  "fs_count_landed_all"  "firebrand count: landed since sim start"
 state  real    fs_count_landed_hist      ij        misc        1         -     rh  "fs_count_landed_hist" "firebrand count: landed during history interval"
-state  integer fs_landing_mask           ij        misc        1         -     rh  "fs_landing_mask"      "valid landing gridpoints"
-state  integer fs_gen_inst_fr 	         *i*j      fire        1         z     rh  "fs_gen_inst_fr"	  "firebrand number generation - instantaneous - on fire refined mesh"
-state  integer fs_gen_inst 	         ij        misc        1         -     rh  "fs_gen_inst"	  "firebrand number generation - instantaneous"
+state  integer fs_landing_mask           ij        misc        1         -      h  "fs_landing_mask"      "valid landing gridpoints"
+state  integer fs_gen_inst_fr 	         *i*j      fire        1         z      h  "fs_gen_inst_fr"	  "firebrand number generation - instantaneous - on fire refined mesh"
+state  integer fs_gen_inst 	         ij        misc        1         -      h  "fs_gen_inst"	  "firebrand number generation - instantaneous"
 state  integer fs_gen_hist 	         ij        misc        1         -     rh  "fs_gen_hist"	  "firebrand number generation - within history interval"
 state  real    fs_frac_landed            ij        misc        1         -     rh  "fs_frac_landed"       "fraction of firebrand landed (pt/total) during history interval"
-state  real    fs_spotting_lkhd          ij        misc        1         -     rh  "fs_spotting_lkhd"     "fire spotting likelihood"
-#state  real    fs_trk            {p}{fs_ntracks}   misc        1         -     irh "fs_trk"               "i,j,k positions of tracked embers " ""                                     
+state  real    fs_spotting_lkhd          ij        misc        1         -      h  "fs_spotting_lkhd"     "fire spotting likelihood"
+state  integer fs_active_inst_fr        *i{k}*j    fire        1         z      h  "fs_active_inst_fr"	  "Active firebrands - instantaneous - on fire refined mesh"
+state  real    fs_spotprop            {p}{fs_nfb}  misc        1         -      h  "fs_spotprop"          "properties of spotting embers i.e. landed ahead of fire" "" 
+state  real    fs_count_landed_hist_fr   *i*j      misc        1         -     rh  "fs_count_landed_hist_fr" "firebrand count: landed during history interval - on fire mesh"
+state  real    fs_max_travel_dist        *i*j      misc        1         -     rh  "fs_max_travel_dist"   "Max travel distance of landed embers"
 #
 # ------------------------------------------------------------------------------------------------------------------------
 # Particle properties: fs_p_[property_name]
@@ -403,6 +405,7 @@ state  real    fs_p_diam	   {fs_maxsize}    dyn_em      1         -      r  "fs_
 state  real    fs_p_effd	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_effd"	          "firebrand effective diameter"    "mm"
 state  real    fs_p_temp	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_temp"	          "firebrand temp"                  "K"
 state  real    fs_p_tvel	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_tvel"	          "firebrand terminal velocity"     "m/s"
+state  real    fs_p_dxy            {fs_maxsize}    dyn_em      1         -      r  "fs_p_dxy"	          "firebrand travel distance" "grid points"
 # ------------------------------------------------------------------------------------------------------------------------
 # ========================================================================================================================
 # End of Firebrand Spotting section

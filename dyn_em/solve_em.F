@@ -4864,6 +4864,7 @@ BENCH_END(bc_2d_tim)
                fs_p_effd     = grid%fs_p_effd,      & 
                fs_p_temp     = grid%fs_p_temp,      & 
                fs_p_tvel     = grid%fs_p_tvel,      & 
+               fs_p_dxy      = grid%fs_p_dxy,       &
                fs_last_gen_dt= grid%fs_last_gen_dt, &
                fs_gen_idmax  = grid%fs_gen_idmax,   &
                fs_fire_ROSdt = grid%fs_fire_ROSdt,  &
@@ -4874,7 +4875,11 @@ BENCH_END(bc_2d_tim)
                fs_spotting_lkhd      = grid%fs_spotting_lkhd,      &
                fs_frac_landed        = grid%fs_frac_landed,        &
                fs_fuel_spotting_risk = grid%fs_fuel_spotting_risk, &
-               fs_count_reset        = grid%fs_count_reset)
+               fs_count_reset        = grid%fs_count_reset,        &
+               fs_count_landed_hist_fr = grid%fs_count_landed_hist_fr,&
+               fs_active_inst_fr    = grid%fs_active_inst_fr,      &
+               fs_spotprop          = grid%fs_spotprop,            &
+               fs_max_travel_dist   = grid%fs_max_travel_dist)
 
    ENDIF
 ! end of firebrand spotting

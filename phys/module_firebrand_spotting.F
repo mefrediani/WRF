@@ -106,11 +106,12 @@ MODULE module_firebrand_spotting
     INTEGER, SAVE :: fs_gen_levels      ! one per grid pt (may change if releasing at multiple levels)
     INTEGER, SAVE :: fs_gen_lim 
     INTEGER, SAVE :: fs_gen_dt
-    INTEGER, SAVE :: fs_num_tracks
 
     REAL,    SAVE :: firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
     REAL,    SAVE :: firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
 
+    INTEGER, PARAMETER :: fs_nfb=1000 ! must match dimspec in registry.fire
+    INTEGER, PARAMETER :: fs_nprop=11 ! must match dimspec in registry.fire
 
     !-------------------------------------------------------------------------------
     ! Fixed indices, ranks ***MODULE SCOPE***
@@ -163,7 +164,7 @@ CONTAINS
         fs_p_dt,     &
         fs_p_x,      &
         fs_p_y,      &
-        fs_p_z,      &
+        fs_p_z,      &        
         fs_last_gen_dt,&
         fs_gen_idmax,  &
         fs_count_reset,&
@@ -172,13 +173,18 @@ CONTAINS
         fs_p_effd,& 
         fs_p_temp, & 
         fs_p_tvel, &
-        fs_count_landed_all,&
-        fs_count_landed_hist,&
-        fs_landing_mask,&
+        fs_p_dxy,  &
+        fs_count_landed_all,    &
+        fs_count_landed_hist,   &
+        fs_count_landed_hist_fr,&
+        fs_landing_mask, &
         fs_spotting_lkhd,&
-        fs_frac_landed,&
-        fs_fire_ROSdt)
-!        fs_trk)
+        fs_frac_landed,  &
+        fs_fire_ROSdt,   &
+        fs_active_inst_fr,&
+        fs_spotprop,      &
+        fs_max_travel_dist)
+
       
 
 !=============================================================
@@ -205,12 +211,13 @@ CONTAINS
         INTEGER,  INTENT(INOUT), DIMENSION(:)    :: fs_p_id, fs_p_dt, fs_p_src
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_mass, fs_p_diam, fs_p_effd
-        REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel
+        REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel, fs_p_dxy
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_all, fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
         INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
+        REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_fire_ROSdt, fs_count_landed_hist_fr, fs_max_travel_dist
 
-!        REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_trk
-        REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_fire_ROSdt
+        INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst_fr
+        REAL,     INTENT(INOUT), DIMENSION(:,:)    :: fs_spotprop
 
         !-------------------------------------------------------------------------------
 
@@ -221,7 +228,6 @@ CONTAINS
         fs_gen_levels    = cf%fs_firebrand_gen_levels
         fs_gen_lim       = cf%fs_firebrand_gen_lim
         fs_gen_dt        = cf%fs_firebrand_gen_dt
-        fs_num_tracks    = cf%fs_num_tracks
 
         fmt = '(A,1x,I6)' 
         WRITE (amsg(1),*)   'SPFire_init: fspotting_em_init'
@@ -277,16 +283,20 @@ CONTAINS
         fs_p_effd = 0.0_dp
         fs_p_temp = 0.0_dp
         fs_p_tvel = 0.0_dp
-
-!        fs_trk(3,fs_num_tracks)   = 0.0_dp
+        fs_p_dxy = 0.0_dp
 
         fs_landing_mask(:,:) = 0
         fs_count_landed_all (:,:) = 0.0_dp
         fs_count_landed_hist(:,:) = 0.0_dp
+        fs_count_landed_hist_fr(:,:) = 0.0_dp
         fs_spotting_lkhd(:,:) = 0.0_dp
         fs_frac_landed(:,:)   = 0.0_dp
 
         fs_fire_ROSdt(:,:) = 0.0_dp
+        fs_max_travel_dist(:,:) = 0.0_dp
+        fs_spotprop(:,:) = 0.0_dp
+
+        fs_active_inst_fr(:,:,:) = 0
 
         !-------------------------------------------------------------------------------
 
@@ -1523,18 +1533,22 @@ END FUNCTION order_val
         fs_p_effd,             & 
         fs_p_temp,             & 
         fs_p_tvel,             & 
+        fs_p_dxy,              &
         fs_last_gen_dt,        &
         fs_gen_idmax,          &
         fs_fire_ROSdt,         &
         fs_fire_area,          &
         fs_count_landed_all,   &
         fs_count_landed_hist,  &
+        fs_count_landed_hist_fr,&
         fs_landing_mask,       &
         fs_spotting_lkhd,      &
         fs_frac_landed,        &
         fs_fuel_spotting_risk, &
-        fs_count_reset)
-!        fs_trk)
+        fs_count_reset,        &
+        fs_active_inst_fr,&
+        fs_spotprop,      &
+        fs_max_travel_dist)
 
 
         !-------------------------------------------------------------------------------
@@ -1591,14 +1605,17 @@ END FUNCTION order_val
         INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id, fs_p_src, fs_p_dt
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_mass, fs_p_diam, fs_p_effd
-        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_temp, fs_p_tvel
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_temp, fs_p_tvel, fs_p_dxy
+        REAL,    INTENT(INOUT), DIMENSION(:,:) :: fs_spotprop
+
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
         INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_hist, fs_gen_inst
-        REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt ! fire memory bounds, not fire tile bounds
+        ! fire memory bounds, not fire tile bounds
+        REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt, fs_count_landed_hist_fr, fs_max_travel_dist
         INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_gen_inst_fr
+        INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,ks:ke,jfms:jfme) :: fs_active_inst_fr
 
-!        REAL,     INTENT(INOUT), DIMENSION(3,1:fs_num_tracks)    :: fs_trk
         !-------------------------------------------------------------------------------
         ! Parameters
         !-------------------------------------------------------------------------------
@@ -1743,12 +1760,16 @@ END FUNCTION order_val
             fs_fuel_spotting_risk(:,:) = ZERO_dp
             fs_count_reset      = .FALSE.
 
-            fs_gen_hist(is:ie,js:je) = 0
+            fs_gen_hist(ims:ime,jms:jme) = 0
         ENDIF
 
-        fs_gen_inst(is:ie,js:je) = 0
-        fs_gen_inst_fr(ifps:ifpe,jfps:jfpe) = 0
+        fs_gen_inst(ims:ime,jms:jme) = 0
+        fs_gen_inst_fr(ifms:ifme,jfms:jfme) = 0
         fs_landing_mask(ims:ime,jms:jme) = 0
+
+        ROS_gen_thresh = cf%fs_ROSthresh
+        fs_fire_ROSdt(ifms:ifme,jfms:jfme) = ZERO_dp
+        firepts = 0
 
         !===============================================================================
         ! Assign properties to derived type (used locally to shorten argument list)
@@ -1783,10 +1804,6 @@ END FUNCTION order_val
         firebrand_dens      = cf%fs_firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
         firebrand_dens_char = cf%fs_firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
 
-        ROS_gen_thresh = cf%fs_ROSthresh
-        fs_fire_ROSdt(ifms:ifme,jfms:jfme) = ZERO_dp
-        firepts = 0
-
         !-------------------------------------------------------------------------------
         ! Updated fuel moisture from WRF-fire
         !-------------------------------------------------------------------------------
@@ -1804,11 +1821,11 @@ END FUNCTION order_val
 
         IF (fs_last_gen_dt >= fs_gen_dt) THEN  
 
-            do ii=ifps, ifpe
-               do jj=jfps,jfpe
-                  if (grid%ros_front(ii,jj) >= ROS_gen_thresh) fs_fire_ROSdt(ii,jj) = grid%ros_front(ii,jj) 
-               enddo
-            enddo
+            DO ii=ifps, ifpe
+               DO jj=jfps,jfpe
+                  IF (grid%ros_front(ii,jj) >= ROS_gen_thresh) fs_fire_ROSdt(ii,jj) = grid%ros_front(ii,jj) 
+               ENDDO
+            ENDDO
 
             ! WRITE (msg,'(1(f6.2,1x,i6))') ROS_gen_thresh, COUNT(fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) > ZERO_dp)       
             ! CALL wrf_debug (wrfdbg, 'SPFire ROS_gen_thresh, COUNT(ROS>thr): '//msg)
@@ -1852,21 +1869,21 @@ END FUNCTION order_val
 
                 Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)! RelPot do not count cat with factor of 0
 
-                ! In Large Fires
-                ! Try to increase minimum LimPot to remove very low values of Release Potential
-                !-------------------------------------------------------------------------------
-                IF (Ngrdpts > fs_gen_lim) THEN
-                    LimPot = 100.0_dp * LimPot ! 1e-4
-                    Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
+                ! ! In Large Fires
+                ! ! Try to increase minimum LimPot to remove very low values of Release Potential
+                ! !-------------------------------------------------------------------------------
+                ! IF (Ngrdpts > fs_gen_lim) THEN
+                !     LimPot = 100.0_dp * LimPot ! 1e-4
+                !     Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
 
-                    IF (Ngrdpts > fs_gen_lim) THEN
-                        LimPot = 100.0_dp * LimPot ! 1e-2
-                        Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
+                !     IF (Ngrdpts > fs_gen_lim) THEN
+                !         LimPot = 100.0_dp * LimPot ! 1e-2
+                !         Ngrdpts= COUNT(RelPot(ifps:ifpe,jfps:jfpe) > LimPot)
 
-                    ENDIF
-                ENDIF
-                ! WRITE (msg,'(1(i8,1x), 1(f14.8,1x))') Ngrdpts, LimPot
-                ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, LimP: '//msg)
+                !     ENDIF
+                ! ENDIF
+                ! ! WRITE (msg,'(1(i8,1x), 1(f14.8,1x))') Ngrdpts, LimPot
+                ! ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, LimP: '//msg)
 
 
                 WRITE (msg,'(1(i6,1x))') Ngrdpts
@@ -2085,10 +2102,7 @@ END FUNCTION order_val
                 ! update relpts to represent value assigned to gridpts 
 
                 relpts = COUNT(n_rel_fr2d(ifps:ifpe,jfps:jfpe)>0) ! Limits to 1 release per refined gridpt, at various heights 
-
-                fs_gen_inst_fr(:,:) = 0
-                fs_gen_inst_fr(:,:) = n_rel_fr2d(:,:)
-
+                fs_gen_inst_fr(ifps:ifpe,jfps:jfpe) = n_rel_fr2d(ifps:ifpe,jfps:jfpe)
 
                 WRITE(msg, '(1(i8,1x))') relpts
                 CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts: '//msg)
