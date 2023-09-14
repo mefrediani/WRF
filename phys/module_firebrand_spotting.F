@@ -2053,8 +2053,8 @@ END FUNCTION order_val
                 ! ! CALL wrf_debug (wrfdbg, 'SPFire_rel_lim Ngrdpts, LimP: '//msg)
 
 
-                WRITE (msg,'(1(i6,1x))') Ngrdpts
-                CALL wrf_debug (wrfdbg, 'SPFire_rel Ngrdpts: '//msg)
+                ! WRITE (msg,'(1(i6,1x))') Ngrdpts
+                ! CALL wrf_debug (wrfdbg, 'SPFire_rel Ngrdpts: '//msg)
 
                 ! Set a threshold for Potentials - use only highest values
                 !-------------------------------------------------------------------------------
@@ -2248,7 +2248,7 @@ END FUNCTION order_val
                 !------------------------------------------------------------------------------- 
                 ! Assign release from the various fuel cat to corresponding gridpts
 
-                CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts>0 --------------------------------------------- ') 
+               !CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts>0 --------------------------------------------- ') 
 
                 ALLOCATE(n_rel_fr2d(ifps:ifpe, jfps:jfpe))
                 n_rel_fr2d(ifps:ifpe, jfps:jfpe) = 0
@@ -2310,7 +2310,7 @@ END FUNCTION order_val
 
                 ENDDO
             
-                CALL wrf_debug (wrfdbg, 'SPFire_rel2fr prep_release_hgt ---------------------------------------------')
+                !CALL wrf_debug (wrfdbg, 'SPFire_rel2fr prep_release_hgt ---------------------------------------------')
                 ALLOCATE(release_prop(relpts*fs_gen_levels))
 
                 ! Create derived type
@@ -2430,7 +2430,7 @@ END FUNCTION order_val
               CALL fs_mpi_nothing2send(sendto=upright_id)
               CALL fs_mpi_nothing2send(sendto=downleft_id)
               CALL fs_mpi_nothing2send(sendto=downright_id)
-              CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
+              !CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
 
            ENDIF
         ENDIF
@@ -2601,7 +2601,7 @@ END FUNCTION order_val
 
             fs_p_dxy(:active_br) = fs_p_dxy(:active_br) + SQRT((xout-xin)**2 + (yout-yin)**2)
             !fs_p_dxy(:active_br) = SQRT((fs_p_x(:active_br)-fs_ip_x(:active_br))**2 + (fs_p_y(:active_br)-fs_ip_y(:active_br))**2)
-            CALL wrf_debug (wrfdbg, 'SPFire_driver end transport   ---------------------------------------------------- ')
+            !CALL wrf_debug (wrfdbg, 'SPFire_driver end transport   ---------------------------------------------------- ')
 
             !=============================================================
             ! Transport done :)
@@ -2668,6 +2668,7 @@ END FUNCTION order_val
             dt_sum_landed(ims:, jms:) = ZERO_dp
             dt_sum_landed_fr(ifms:ifme, jfms:jfme) = ZERO_dp
             travel_dist(ifms:ifme, jfms:jfme) = ZERO_dp
+            nresets = 0
 
             CALL deposit_br(& !active_br= active_br, &
                            fs_p_id    = fs_p_id,      &
@@ -2678,17 +2679,19 @@ END FUNCTION order_val
                            sum_fbrand = dt_sum_landed,&
                            sum_fbrand_fr = dt_sum_landed_fr,&
                            land_hgt   = firebrand_land_hgt, &
+                           nresets    = nresets,     &                           
                            sparse_mask= deposit_mask, &
                            travel_dist= travel_dist,  &
                            sr=grid%sr_x)
 
-            CALL wrf_debug (wrfdbg, 'SPFire_driver back from deposit ')
+            WRITE (msg,'(i12)') nresets
+            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
 
             ! The mask is based on floor(fs_p_x,y) so deposits should not exist at ie or je
             fs_count_landed_all(is:ie, js:je)  = fs_count_landed_all(is:ie, js:je)  + dt_sum_landed(is:ie, js:je)
             fs_count_landed_hist(is:ie, js:je) = fs_count_landed_hist(is:ie, js:je) + dt_sum_landed(is:ie, js:je)
             WRITE (msg,'(2(i12,x))') COUNT(dt_sum_landed(is:ie, js:je) > 0), INT(SUM(dt_sum_landed(is:ie, js:je)))
-            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
+            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br counts: '//msg)
 
             fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) = fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) + dt_sum_landed_fr(ifms:ifme, jfms:jfme)
 
@@ -2698,9 +2701,9 @@ END FUNCTION order_val
                ENDDO
             ENDDO
 
-            ! DEALLOCATE(travel_dist)
+            DEALLOCATE(travel_dist)
 
-            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit done')
+            !CALL wrf_debug (wrfdbg, 'SPFire_driver deposit done')
 
             !-------------------------------------------------------------------------------
             ! Fetch initial properties of deposited embers
@@ -2721,14 +2724,14 @@ END FUNCTION order_val
                spotprop(11, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_tvel, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
                spotprop(12, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
 
-               DO kk=fs_spot_idmax+1,fs_spot_idmax + nspots
-                  WRITE (msg,'(2(i8,1x),3(f12.6,1x))') &
-                       kk, INT(spotprop(1,kk)), &
-                           spotprop(4,kk), &
-                           spotprop(5,kk), &
-                           spotprop(6,kk)
-                  CALL wrf_debug (0, 'SPFire spotprop: '//msg)
-               ENDDO
+               ! DO kk=fs_spot_idmax+1,fs_spot_idmax + nspots
+               !    WRITE (msg,'(2(i8,1x),3(f12.6,1x))') &
+               !         kk, INT(spotprop(1,kk)), &
+               !             spotprop(4,kk), &
+               !             spotprop(5,kk), &
+               !             spotprop(6,kk)
+               !    CALL wrf_debug (0, 'SPFire spotprop: '//msg)
+               ! ENDDO
 
 
                fs_spot_idmax = fs_spot_idmax + nspots
@@ -2909,7 +2912,7 @@ END FUNCTION order_val
             active_br = COUNT( fs_p_id > 0 )
 
             WRITE (msg,'(1(i8,1x))') active_br
-            CALL wrf_debug (wrfdbg, 'SPFire_driver pack AFTER mpi_send2neighbors active_br >>> '// msg)
+            CALL wrf_debug (wrfdbg, 'SPFire_driver pack AFTER mpi_send2neighbors. active_br >>> '// msg)
 
 
             !===============================================================================            
@@ -4078,7 +4081,7 @@ END SUBROUTINE remove_br
 
 !=============================================================
 PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dxy, &
-                           sum_fbrand, land_hgt, &
+                           sum_fbrand, land_hgt, nresets, &
                            sparse_mask, travel_dist, sr, sum_fbrand_fr)
 !=============================================================
 
@@ -4090,13 +4093,14 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dxy, &
     REAL,    INTENT(IN)    :: land_hgt
     INTEGER, INTENT(IN)    :: sr
     LOGICAL, INTENT(INOUT), DIMENSION(fs_array_maxsize)    :: sparse_mask
+    INTEGER, INTENT(INOUT) :: nresets
+
 
     !INTEGER, INTENT(IN) :: active_br
 
     INTEGER, ALLOCATABLE, DIMENSION(:) :: rx, ry, rid, frx, fry, dxy
     LOGICAL, DIMENSION(fs_array_maxsize)    :: bounds_mask
     !LOGICAL, DIMENSION(fs_array_maxsize)    :: sparse_mask
-    INTEGER :: nresets
     INTEGER :: x, y, i0,k ! counters
     !CHARACTER(LEN=10) fmt
 
@@ -4125,8 +4129,8 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dxy, &
     nresets = 0
     nresets = COUNT(sparse_mask)
 
-    ! WRITE (msg,'(i6)') nresets
-    ! CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
+    WRITE (msg,'(i6)') nresets
+    CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
 
     IF (nresets > 0) THEN
 
@@ -4184,8 +4188,7 @@ END SUBROUTINE deposit_br
 !=============================================================
 
 !=============================================================
-!PURE 
-SUBROUTINE count_active_3d(fs_p_id, fs_p_x, fs_p_y, fs_p_z, active_inst_fr, sr)
+PURE SUBROUTINE count_active_3d(fs_p_id, fs_p_x, fs_p_y, fs_p_z, active_inst_fr, sr)
 !=============================================================
 
     IMPLICIT NONE
@@ -4223,8 +4226,8 @@ SUBROUTINE count_active_3d(fs_p_id, fs_p_x, fs_p_y, fs_p_z, active_inst_fr, sr)
     n = 0
     n = COUNT(sparse_mask)
 
-    WRITE (msg,'(i6)') n
-    CALL wrf_debug (wrfdbg, 'SPFire_active total: '//msg)
+    ! WRITE (msg,'(i6)') n
+    ! CALL wrf_debug (wrfdbg, 'SPFire_active total: '//msg)
 
     IF (n > 0) THEN
 
@@ -4251,10 +4254,10 @@ SUBROUTINE count_active_3d(fs_p_id, fs_p_x, fs_p_y, fs_p_z, active_inst_fr, sr)
             active_inst_fr(frx(k),frz(k), fry(k)) = active_inst_fr(frx(k),frz(k), fry(k)) + 1.0_dp            
         ENDDO
 
-        DO k=1,MIN(n,5)
-            WRITE (msg,'(4(i6,x))') frx(k),frz(k), fry(k), active_inst_fr(frx(k),frz(k), fry(k))
-            CALL wrf_debug (wrfdbg, 'SPFire_active loc: '//msg)
-        ENDDO
+        ! DO k=1,MIN(n,5)
+        !     WRITE (msg,'(4(i6,x))') frx(k),frz(k), fry(k), active_inst_fr(frx(k),frz(k), fry(k))
+        !     CALL wrf_debug (wrfdbg, 'SPFire_active loc: '//msg)
+        ! ENDDO
 
     ENDIF
 
