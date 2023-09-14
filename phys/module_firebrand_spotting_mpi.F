@@ -46,7 +46,9 @@ MODULE module_firebrand_spotting_mpi
         fs_mpi_sendbuff_int, &
         fs_mpi_sendbuffsize, &
         fs_mpi_sendbuff1_real, &
-        fs_mpi_sendbuff1_int
+        fs_mpi_sendbuff1_int, &
+        fs_mpi_tilesend2master, &
+        fs_mpi_masterrecvtiles
 #endif
 
     ! THESE VARIABLES ARE IN MODULE SCOPE ! Careful with reassignments - don't reassign
@@ -366,6 +368,112 @@ CONTAINS
 
 !=============================================================
     END SUBROUTINE fs_mpi_send2neighbors
+!=============================================================
+
+
+!=============================================================
+    SUBROUTINE fs_mpi_tilesend2master(MasterId, nvectors, npts, thistilearray)
+!=============================================================
+
+        IMPLICIT NONE
+
+        INTEGER, INTENT(IN) :: nvectors ! number of real type arrays packed together
+        INTEGER, INTENT(IN) :: npts     ! number of elements in each vector
+        INTEGER, INTENT(IN) :: MasterId
+        REAL,    INTENT(IN), DIMENSION(:,:) :: thistilearray 
+
+        !-------------------------------------------------------------------------------
+
+         CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=npts) ! Comm send >0: BuffSz
+
+         IF (npts > 0) THEN
+
+            ! WRITE (msg,'((i6,1x))') npts
+            ! CALL wrf_debug (wrfdbg, 'SPFire_mpi_tilesend2master npts:  '//msg)
+
+            CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=npts*nvectors, buff=thistilearray(1:nvectors, 1:npts))
+
+         ELSE
+            CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+
+         ENDIF
+        
+!=============================================================
+    END SUBROUTINE fs_mpi_tilesend2master
+!=============================================================
+
+
+
+!=============================================================
+    SUBROUTINE fs_mpi_masterrecvtiles(nvectors, npts, thistilearray, dataarray)
+!=============================================================
+
+        IMPLICIT NONE
+
+        INTEGER, INTENT(IN) :: nvectors ! number of real type arrays packed together
+        INTEGER, INTENT(IN) :: npts     ! number of elements in each vector
+        REAL,    INTENT(IN),    DIMENSION(:,:) :: thistilearray 
+        REAL,    INTENT(INOUT), DIMENSION(:,:) :: dataarray 
+
+        INTEGER, ALLOCATABLE, DIMENSION(:)   :: np_npts
+        REAL,    ALLOCATABLE, DIMENSION(:,:) :: np_arrays
+        INTEGER :: pts_total, ii, kk, kk1, kk2, datasize
+        !-------------------------------------------------------------------------------
+
+        dataarray(:,:) = ZERO_dp
+        ALLOCATE( np_npts(mpiprocs) )
+        np_npts(:) = 0
+
+         IF (npts > 0) THEN ! spots on Master
+            np_npts(1) = npts
+         ENDIF
+
+         DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
+            np_npts(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
+
+            WRITE(msg, '(2(i8,1x))') kk, np_npts(kk)
+            CALL wrf_debug (wrfdbg, 'SPFire_mpi_spotprop proc deposit: '//msg)
+         ENDDO
+
+         pts_total = SUM(np_npts)
+
+         IF ( pts_total > 0) THEN 
+            ALLOCATE(np_arrays(nvectors, pts_total))
+
+            IF (npts > 0) THEN ! spots on Master
+               np_arrays(1:nvectors,1:npts) = thistilearray(1:nvectors, 1:npts)
+            ENDIF
+
+         !-------------------------------------------------------------------------------
+         ! Receive data from procs
+
+            kk1 = npts + 1 ! index start after master's 
+            DO kk=2, mpiprocs ! kk=1 is Master
+
+               IF (np_npts(kk) > 0) THEN 
+
+                  kk2 = kk1 + np_npts(kk) -1                
+
+                  WRITE(msg, '(4(i8,1x))') kk, np_npts(kk), kk1, kk2
+                  CALL wrf_debug (wrfdbg, 'SPFire_mpi_spotprop master kk, np_nspots, k1:k2: '//msg)
+
+                  np_arrays(1:nvectors, kk1:kk2)=  RESHAPE( &
+                       fs_mpi_recvfrompatch_real(bsz=np_npts(kk)*nvectors, fromid=kk-1), &
+                                                           [nvectors, np_npts(kk)])
+
+                  kk1 = kk1 + np_npts(kk)
+               ENDIF
+            ENDDO
+
+            datasize = MIN(SIZE(dataarray), pts_total)
+            dataarray(1:nvectors,1:datasize) = np_arrays(1:nvectors,1:datasize)
+
+            DEALLOCATE(np_arrays, np_npts) 
+
+         ENDIF ! ( spots_total > 0)
+        
+!=============================================================
+    END SUBROUTINE fs_mpi_masterrecvtiles
 !=============================================================
 
 

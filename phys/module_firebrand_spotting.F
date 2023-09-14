@@ -127,6 +127,21 @@ MODULE module_firebrand_spotting
         REAL :: p_tvel ! fbvelo 
     END TYPE p_properties
 
+    ! TYPE p_spotprop
+    !     INTEGER :: id   !1        
+    !     INTEGER :: dt   !2
+    !     INTEGER :: src  !3
+    !     REAL :: x       !4
+    !     REAL :: y       !5
+    !     REAL :: z       !6
+    !     REAL :: p_mass ! 7
+    !     REAL :: p_diam ! 8
+    !     REAL :: p_effd ! 9 
+    !     REAL :: p_temp ! 10
+    !     REAL :: p_tvel ! 11
+    !     REAL :: dxy    ! 12
+    ! END TYPE p_spotprop
+
     !-------------------------------------------------------------------------------
     ! grid and cf are not here because dimensions are given at runtime (derived types)
     ! Also, grid values change with timestep, so they need to be passed as dummy arguments
@@ -165,15 +180,26 @@ CONTAINS
         fs_p_x,      &
         fs_p_y,      &
         fs_p_z,      &        
-        fs_last_gen_dt,&
-        fs_gen_idmax,  &
-        fs_count_reset,&
         fs_p_mass, &  
         fs_p_diam, & 
         fs_p_effd,& 
         fs_p_temp, & 
         fs_p_tvel, &
         fs_p_dxy,  &
+        fs_ip_id,   &
+        fs_ip_src,  &
+        fs_ip_dt,   &
+        fs_ip_x,    &
+        fs_ip_y,    &
+        fs_ip_z,    &
+        fs_ip_mass, &  
+        fs_ip_diam, & 
+        fs_ip_effd, & 
+        fs_ip_temp, & 
+        fs_ip_tvel, & 
+        fs_last_gen_dt,&
+        fs_gen_idmax,  &
+        fs_spot_idmax, &
         fs_count_landed_all,    &
         fs_count_landed_hist,   &
         fs_count_landed_hist_fr,&
@@ -181,11 +207,21 @@ CONTAINS
         fs_spotting_lkhd,&
         fs_frac_landed,  &
         fs_fire_ROSdt,   &
+        fs_count_reset,&
         fs_active_inst_fr,&
-        fs_spotprop,      &
+        fs_spotprop_id,  &
+        fs_spotprop_dt,  &
+        fs_spotprop_src, &
+        fs_spotprop_x,   &
+        fs_spotprop_y,   &
+        fs_spotprop_z,   &
+        fs_spotprop_m,   &
+        fs_spotprop_d,   &
+        fs_spotprop_e,   &
+        fs_spotprop_t,   &
+        fs_spotprop_v,   &
+        fs_spotprop_dxy, &      
         fs_max_travel_dist)
-
-      
 
 !=============================================================
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
@@ -204,7 +240,7 @@ CONTAINS
         TYPE(domain),               INTENT(IN) :: grid ! 
         TYPE(grid_config_rec_type), INTENT(IN) :: cf   !  run-time configuration (namelist) for domain
 
-        INTEGER,  INTENT(INOUT) :: fs_last_gen_dt, fs_gen_idmax
+        INTEGER,  INTENT(INOUT) :: fs_last_gen_dt, fs_gen_idmax, fs_spot_idmax
         LOGICAL,  INTENT(INOUT) :: fs_count_reset
 
         ! Firebrand Spotting Particle Properties (fs_p_*)
@@ -212,12 +248,21 @@ CONTAINS
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_mass, fs_p_diam, fs_p_effd
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_p_temp, fs_p_tvel, fs_p_dxy
+
+        INTEGER,  INTENT(INOUT), DIMENSION(:)    :: fs_ip_id, fs_ip_dt, fs_ip_src
+        REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_ip_x, fs_ip_y, fs_ip_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
+        REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_ip_mass, fs_ip_diam, fs_ip_effd
+        REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_ip_temp, fs_ip_tvel
+
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_all, fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
         INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_fire_ROSdt, fs_count_landed_hist_fr, fs_max_travel_dist
 
         INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst_fr
-        REAL,     INTENT(INOUT), DIMENSION(:,:)    :: fs_spotprop
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_x,fs_spotprop_y,fs_spotprop_z
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m,fs_spotprop_d,fs_spotprop_e
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_t,fs_spotprop_v,fs_spotprop_dxy
+        INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_spotprop_id, fs_spotprop_dt, fs_spotprop_src 
 
         !-------------------------------------------------------------------------------
 
@@ -271,6 +316,7 @@ CONTAINS
 
         fs_last_gen_dt = 0
         fs_gen_idmax   = 0
+        fs_spot_idmax  = 0
 
         fs_p_id  = 0
         fs_p_dt  = 0
@@ -285,6 +331,18 @@ CONTAINS
         fs_p_tvel = 0.0_dp
         fs_p_dxy = 0.0_dp
 
+        fs_ip_id  = 0
+        fs_ip_dt  = 0
+        fs_ip_src = 0
+        fs_ip_x  = 0.0_dp
+        fs_ip_y  = 0.0_dp
+        fs_ip_z  = 0.0_dp
+        fs_ip_mass = 0.0_dp
+        fs_ip_diam = 0.0_dp
+        fs_ip_effd = 0.0_dp
+        fs_ip_temp = 0.0_dp
+        fs_ip_tvel = 0.0_dp
+
         fs_landing_mask(:,:) = 0
         fs_count_landed_all (:,:) = 0.0_dp
         fs_count_landed_hist(:,:) = 0.0_dp
@@ -294,7 +352,21 @@ CONTAINS
 
         fs_fire_ROSdt(:,:) = 0.0_dp
         fs_max_travel_dist(:,:) = 0.0_dp
-        fs_spotprop(:,:) = 0.0_dp
+        fs_spotprop_id(:) = 0
+        fs_spotprop_dt(:) = 0
+        fs_spotprop_src(:) = 0
+        fs_spotprop_x(:) = 0.0_dp  
+        fs_spotprop_y(:) = 0.0_dp  
+        fs_spotprop_z(:) = 0.0_dp  
+        fs_spotprop_m(:) = 0.0_dp  
+        fs_spotprop_d(:) = 0.0_dp  
+        fs_spotprop_e(:) = 0.0_dp  
+        fs_spotprop_t(:) = 0.0_dp  
+        fs_spotprop_v(:) = 0.0_dp  
+        fs_spotprop_dxy(:) = 0.0_dp
+
+
+
 
         fs_active_inst_fr(:,:,:) = 0
 
@@ -692,6 +764,7 @@ END FUNCTION order_val
 
         INTEGER, INTENT(INOUT), DIMENSION(:)   :: fs_p_id, fs_p_src, fs_p_dt
         REAL,    INTENT(INOUT), DIMENSION(:)   :: fs_p_z, fs_p_x, fs_p_y
+
         REAL,    INTENT(INOUT), DIMENSION(:)   :: release_i, release_j, release_k
         INTEGER, OPTIONAL, INTENT(IN), DIMENSION(:) :: release_dt, release_src
         INTEGER, INTENT(INOUT)  :: fs_gen_idmax
@@ -761,11 +834,14 @@ END FUNCTION order_val
                 IF (PRESENT(release_dt)) fs_p_dt(ii) = release_dt(br)
                 IF (PRESENT(release_src)) fs_p_src(ii) = release_src(br)
 
+                ! When particles are added through MPI, these variables must be overwritten with received values 
+                ! Properties from MPI generations are being handled on the main code (fs_ip_* and fs_p_prop will be overwritten)
                 fs_p_prop(ii)%p_mass  = release_prop(br)%p_mass
                 fs_p_prop(ii)%p_diam  = release_prop(br)%p_diam
                 fs_p_prop(ii)%p_effd = release_prop(br)%p_effd
                 fs_p_prop(ii)%p_temp  = release_prop(br)%p_temp 
                 fs_p_prop(ii)%p_tvel  = release_prop(br)%p_tvel 
+
 
                 fs_gen_idmax = fs_p_id(ii)
 
@@ -970,6 +1046,27 @@ END FUNCTION order_val
 !=============================================================
 !=============================================================
 
+!=============================================================    
+    ELEMENTAL FUNCTION frac_atm2fire_ij (pij, sr)
+!=============================================================
+! Convert default atm grid to lower left index of refined grid
+! (atm_i, atm_j) = (f_i : f_i + srx , f_j : f_j + sry)
+
+        IMPLICIT NONE
+
+        INTEGER  :: frac_atm2fire_ij
+        REAL, INTENT(IN) :: pij
+        INTEGER, INTENT(IN) :: sr
+
+        frac_atm2fire_ij = FLOOR((pij - 1.0) * REAL(sr) + 1.0)
+        
+! pij = 100.5,  sr = 3: 99.5*3+1 = 299
+! pij = 101.75, sr = 3: 100.75*3+1 = 303
+
+    END FUNCTION frac_atm2fire_ij
+!=============================================================
+!=============================================================
+
 
 
 ! !=============================================================
@@ -980,7 +1077,8 @@ END FUNCTION order_val
 
 !         IMPLICIT NONE
 
-!         TYPE(domain), INTENT(IN) :: grid ! input data **Note: Intent IN**
+!         TYPE(domain), INTENT(IN) :: grid ! input data **Note:
+    !         Intent IN**
 !         REAL,    INTENT(OUT), DIMENSION(:) :: fuel_frac
 !         INTEGER, INTENT(IN),  DIMENSION(:,:) :: fire_ij 
 
@@ -1001,9 +1099,12 @@ END FUNCTION order_val
 !             sri = fpi(k)
 !             srj = fpj(k)
 
-!             fuel_frac(k)  = MAXVAL(grid%fuel_frac( sri: sri+srx-1, srj : srj+sry-1))
+!             fuel_frac(k)  = MAXVAL(grid%fuel_frac( sri: sri+srx-1,
+    !             srj : srj+sry-1))
 
-!             !WRITE (msg,*) MAXVAL(grid%zsf(sri:sri+dsx,srj:srj+dsy)) always zero??
+!             !WRITE (msg,*)
+    !             MAXVAL(grid%zsf(sri:sri+dsx,srj:srj+dsy)) always
+    !             zero??
 
 !         ENDDO
 
@@ -1016,7 +1117,8 @@ END FUNCTION order_val
 ! !=============================================================
 !     PURE FUNCTION uniq_ij (fpi, fpj)
 ! !=============================================================
-! ! remove duplicated grid points (after converting from refined fire grid to grid)
+! ! remove duplicated grid points (after converting from refined fire
+    ! grid to grid)
 
 ! ! Not used but quite handy - do not delete it. 
 
@@ -1033,8 +1135,8 @@ END FUNCTION order_val
 !         mask = .TRUE.
 
 !         DO i = cnt, 2, -1
-!             mask(i) = .NOT.( ANY(fpi(:i-1) == fpi(i) .AND. &
-!                                  fpj(:i-1) == fpj(i)))
+!             mask(i) = .NOT.( ANY(fpi(:i-1) == fpi(i) .AND.
+    !             fpj(:i-1) == fpj(i)))
 !         END DO
 
 !         ALLOCATE( uniq_ij(COUNT(mask),2) )
@@ -1534,8 +1636,20 @@ END FUNCTION order_val
         fs_p_temp,             & 
         fs_p_tvel,             & 
         fs_p_dxy,              &
+        fs_ip_id,               &
+        fs_ip_src,              &
+        fs_ip_dt,               &
+        fs_ip_x,                &
+        fs_ip_y,                &
+        fs_ip_z,                &
+        fs_ip_mass,             &  
+        fs_ip_diam,             & 
+        fs_ip_effd,             & 
+        fs_ip_temp,             & 
+        fs_ip_tvel,             & 
         fs_last_gen_dt,        &
         fs_gen_idmax,          &
+        fs_spot_idmax,         &
         fs_fire_ROSdt,         &
         fs_fire_area,          &
         fs_count_landed_all,   &
@@ -1547,7 +1661,18 @@ END FUNCTION order_val
         fs_fuel_spotting_risk, &
         fs_count_reset,        &
         fs_active_inst_fr,&
-        fs_spotprop,      &
+        fs_spotprop_id,  &
+        fs_spotprop_dt,  &
+        fs_spotprop_src, &
+        fs_spotprop_x,   &
+        fs_spotprop_y,   &
+        fs_spotprop_z,   &
+        fs_spotprop_m,   &
+        fs_spotprop_d,   &
+        fs_spotprop_e,   &
+        fs_spotprop_t,   &
+        fs_spotprop_v,   &
+        fs_spotprop_dxy, &      
         fs_max_travel_dist)
 
 
@@ -1595,18 +1720,33 @@ END FUNCTION order_val
         TYPE (GRID_config_rec_type),INTENT(IN)    :: cf   ! type available by module host association 
 
         !-------------------------------------------------------------------------------
+        ! Local Parameters 
+        !-------------------------------------------------------------------------------
+        INTEGER, PARAMETER :: nspotprops = 12
+        INTEGER, PARAMETER :: nspotmax = 1000 ! move this to namelist?
+
+        !-------------------------------------------------------------------------------
         ! Dummy Arguments
         !-------------------------------------------------------------------------------
 
         LOGICAL, INTENT(INOUT)  :: fs_count_reset
-        INTEGER, INTENT(INOUT)  :: fs_last_gen_dt, fs_gen_idmax
+        INTEGER, INTENT(INOUT)  :: fs_last_gen_dt, fs_gen_idmax, fs_spot_idmax
 
         ! Firebrand Spotting Particle Properties (fs_p_*)
         INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id, fs_p_src, fs_p_dt
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z ! positions are relative to grid edges: particle at grid center point (x,y,z) = (1.5, 1.5, 1.5)
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_mass, fs_p_diam, fs_p_effd
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_temp, fs_p_tvel, fs_p_dxy
-        REAL,    INTENT(INOUT), DIMENSION(:,:) :: fs_spotprop
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_x,fs_spotprop_y,fs_spotprop_z
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m,fs_spotprop_d,fs_spotprop_e
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_t,fs_spotprop_v,fs_spotprop_dxy
+        INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_spotprop_id, fs_spotprop_dt, fs_spotprop_src 
+
+        ! Firebrand Spotting Initial Particle Properties (fs_ip_*)
+        INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_ip_id, fs_ip_src, fs_ip_dt
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_ip_x,  fs_ip_y, fs_ip_z 
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_ip_mass, fs_ip_diam, fs_ip_effd
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_ip_temp, fs_ip_tvel
 
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
@@ -1636,6 +1776,20 @@ END FUNCTION order_val
         REAL, DIMENSION(ims:ime, jms:jme)       :: msft, w1
         REAL, DIMENSION(ks:ke)                  :: znw
         REAL, ALLOCATABLE, DIMENSION(:)         :: xout, yout, zout ! firebrand position after advection
+        REAL, ALLOCATABLE, DIMENSION(:)         :: xin, yin, zin ! firebrand position before advection
+
+        !-------------------------------------------------------------------------------
+        ! Deposits
+        !-------------------------------------------------------------------------------
+
+        REAL,    ALLOCATABLE, DIMENSION(:,:) :: travel_dist
+        LOGICAL, ALLOCATABLE, DIMENSION(:) :: deposit_mask
+
+        REAL, DIMENSION(nspotprops, nspotmax) :: spotprop
+        REAL, DIMENSION(nspotprops, nspotmax) :: gridspotprop
+
+        REAL, DIMENSION(ims:ime, jms:jme) :: dt_sum_landed ! sum timestep's deposited fb in 2-D memory array
+        REAL, DIMENSION(ifms:ifme, jfms:jfme) :: dt_sum_landed_fr ! sum timestep's deposited fb in 2-D memory array
 
         !-------------------------------------------------------------------------------
         ! Likelihood
@@ -1653,7 +1807,6 @@ END FUNCTION order_val
         INTEGER :: ndep, ndep_total
         !-------------------------------------------------------------------------------
 
-        REAL, DIMENSION(ims:ime, jms:jme) :: dt_sum_landed ! sum timestep's deposited fb in 2-D memory array
         LOGICAL, SAVE :: hist_flag = .FALSE.  ! time of history output
 
         !-------------------------------------------------------------------------------
@@ -1683,7 +1836,7 @@ END FUNCTION order_val
 
         INTEGER :: kk, pp, ii, jj ! counters        
         INTEGER :: kk1, kk2, k_end
-        INTEGER :: active_br, prior_br, nresets, idmax, firepts, nbr_sum
+        INTEGER :: active_br, prior_br, nresets, idmax, firepts, nbr_sum, nspots
         REAL    :: rdx, rdy, dt, sr_xy ! grid length (1/dx) and wrf's time-step
 
         INTEGER :: firebrand_max_life_dt
@@ -1759,7 +1912,21 @@ END FUNCTION order_val
             fs_count_landed_hist(:,:)  = ZERO_dp
             fs_fuel_spotting_risk(:,:) = ZERO_dp
             fs_count_reset      = .FALSE.
-
+            spotprop(:,:) = ZERO_dp
+            gridspotprop(:,:) = ZERO_dp
+            fs_spotprop_id = ZERO_dp
+            fs_spotprop_dt = ZERO_dp
+            fs_spotprop_src= ZERO_dp
+            fs_spotprop_x  = ZERO_dp
+            fs_spotprop_y  = ZERO_dp
+            fs_spotprop_z  = ZERO_dp
+            fs_spotprop_m  = ZERO_dp
+            fs_spotprop_d  = ZERO_dp
+            fs_spotprop_e  = ZERO_dp
+            fs_spotprop_t  = ZERO_dp
+            fs_spotprop_v  = ZERO_dp
+            fs_spotprop_dxy= ZERO_dp
+            
             fs_gen_hist(ims:ime,jms:jme) = 0
         ENDIF
 
@@ -2191,21 +2358,37 @@ END FUNCTION order_val
                     active_br = active_br)
 
                 !-------------------------------------------------------------------------------
+                ! Assign initial properties
+
+                fs_ip_x(prior_br+1:active_br)    = fs_p_x(prior_br+1:active_br) 
+                fs_ip_y(prior_br+1:active_br)    = fs_p_y(prior_br+1:active_br) 
+                fs_ip_z(prior_br+1:active_br)    = fs_p_z(prior_br+1:active_br) 
+                fs_ip_id(prior_br+1:active_br)   = fs_p_id(prior_br+1:active_br) 
+                fs_ip_dt(prior_br+1:active_br)   = fs_p_dt(prior_br+1:active_br) 
+                fs_ip_src(prior_br+1:active_br)  = fs_p_src(prior_br+1:active_br) 
+                fs_ip_mass(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_mass
+                fs_ip_diam(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_diam
+                fs_ip_effd(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_effd
+                fs_ip_temp(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_temp
+                fs_ip_tvel(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_tvel
+
+
+                !-------------------------------------------------------------------------------
                 ! Track released firebrands
                 !-------------------------------------------------------------------------------
 
-                WRITE (msg,'(i8)') active_br
-                CALL wrf_debug (wrfdbg, 'SPFire_rel: Active brands: '// msg )
+                WRITE (msg,'(i8,x,i8)') prior_br+1, active_br
+                CALL wrf_debug (wrfdbg, 'SPFire_rel: New elements range: '// msg )
 
                 IF (cf%trackember) THEN
                 
                    DO kk=prior_br+1,active_br
-                      WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
-                           kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
-                           fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
-                           fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
-                           fs_p_temp(kk), fs_p_tvel(kk)
-                      CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
+                      WRITE (msg,'(3(i8,1x),i10,1x,9(f12.6,1x))') &
+                           kk, fs_ip_id(kk), fs_ip_dt(kk),fs_ip_src(kk), &
+                           fs_ip_x(kk), fs_ip_y(kk), fs_ip_z(kk), &
+                           fs_ip_mass(kk), fs_ip_diam(kk), fs_ip_effd(kk), &
+                           fs_ip_temp(kk), fs_ip_tvel(kk), fs_p_dxy(kk)
+                      CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v,d: '//msg)
                    ENDDO
                 ENDIF
                 !-------------------------------------------------------------------------------
@@ -2364,6 +2547,12 @@ END FUNCTION order_val
                      yout(active_br), &
                      zout(active_br)) 
 
+            ALLOCATE(xin(active_br), &
+                     yin(active_br))
+
+            xin = fs_p_x(:active_br)
+            yin = fs_p_y(:active_br)
+
             CALL advect_xyz_m(grid=grid,           &
                             xp=  fs_p_x(:active_br), &
                             yp=  fs_p_y(:active_br), &
@@ -2410,6 +2599,8 @@ END FUNCTION order_val
             fs_p_temp(:active_br) = fs_p_prop(:active_br)%p_temp
             fs_p_tvel(:active_br) = fs_p_prop(:active_br)%p_tvel
 
+            fs_p_dxy(:active_br) = fs_p_dxy(:active_br) + SQRT((xout-xin)**2 + (yout-yin)**2)
+            !fs_p_dxy(:active_br) = SQRT((fs_p_x(:active_br)-fs_ip_x(:active_br))**2 + (fs_p_y(:active_br)-fs_ip_y(:active_br))**2)
             CALL wrf_debug (wrfdbg, 'SPFire_driver end transport   ---------------------------------------------------- ')
 
             !=============================================================
@@ -2425,12 +2616,13 @@ END FUNCTION order_val
 
             IF (cf%trackember) THEN
                DO kk=1,active_br
-                  WRITE (msg,'(3(i8,1x),i10,1x,8(f12.6,1x))') &
+                  WRITE (msg,'(3(i8,1x),i10,1x,9(f12.6,1x))') &
                        kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
                        fs_p_x(kk), fs_p_y(kk), fs_p_z(kk), &
                        fs_p_mass(kk), fs_p_diam(kk), fs_p_effd(kk), &
-                       fs_p_temp(kk), fs_p_tvel(kk)
-                  CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v: '//msg)
+                       fs_p_temp(kk), fs_p_tvel(kk), fs_p_dxy(kk)
+                  CALL wrf_debug (0, 'SPFire p,id,dt,src,x,y,z,m,d,e,t,v,d: '//msg)
+
                ENDDO
             ENDIF
             !-------------------------------------------------------------------------------
@@ -2468,17 +2660,29 @@ END FUNCTION order_val
 
 
             !===============================================================================            
-            ! Spotfires: Deposited Brands
+            ! Spotfires: Deposited Embers
             !===============================================================================
 
+            ALLOCATE(deposit_mask(fs_array_maxsize), travel_dist(ifms:ifme,jfms:jfme)) 
+
             dt_sum_landed(ims:, jms:) = ZERO_dp
+            dt_sum_landed_fr(ifms:ifme, jfms:jfme) = ZERO_dp
+            travel_dist(ifms:ifme, jfms:jfme) = ZERO_dp
+
             CALL deposit_br(& !active_br= active_br, &
                            fs_p_id    = fs_p_id,      &
                            fs_p_x     = fs_p_x,       &
                            fs_p_y     = fs_p_y,       &
                            fs_p_z     = fs_p_z,       &
+                           fs_p_dxy   = fs_p_dxy,     &
                            sum_fbrand = dt_sum_landed,&
-                           land_hgt   = firebrand_land_hgt)
+                           sum_fbrand_fr = dt_sum_landed_fr,&
+                           land_hgt   = firebrand_land_hgt, &
+                           sparse_mask= deposit_mask, &
+                           travel_dist= travel_dist,  &
+                           sr=grid%sr_x)
+
+            CALL wrf_debug (wrfdbg, 'SPFire_driver back from deposit ')
 
             ! The mask is based on floor(fs_p_x,y) so deposits should not exist at ie or je
             fs_count_landed_all(is:ie, js:je)  = fs_count_landed_all(is:ie, js:je)  + dt_sum_landed(is:ie, js:je)
@@ -2486,6 +2690,96 @@ END FUNCTION order_val
             WRITE (msg,'(2(i12,x))') COUNT(dt_sum_landed(is:ie, js:je) > 0), INT(SUM(dt_sum_landed(is:ie, js:je)))
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
 
+            fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) = fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) + dt_sum_landed_fr(ifms:ifme, jfms:jfme)
+
+            DO ii=ifms,ifme
+               DO jj=jfms,jfme                  
+                  fs_max_travel_dist(ii,jj) = MAX(fs_max_travel_dist(ii,jj), travel_dist(ii,jj))
+               ENDDO
+            ENDDO
+
+            ! DEALLOCATE(travel_dist)
+
+            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit done')
+
+            !-------------------------------------------------------------------------------
+            ! Fetch initial properties of deposited embers
+            !-------------------------------------------------------------------------------
+            nspots = 0
+            nspots = COUNT(deposit_mask)
+            IF (fs_spot_idmax + nspots <= fs_nfb) THEN
+               spotprop( 1, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_id, deposit_mask, SPREAD(0,1,fs_nfb)) 
+               spotprop( 2, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_dt, deposit_mask, SPREAD(0,1,fs_nfb)) 
+               spotprop( 3, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_src, deposit_mask, SPREAD(0,1,fs_nfb)) 
+               spotprop( 4, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_x, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+               spotprop( 5, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_y, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+               spotprop( 6, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_z, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+               spotprop( 7, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               spotprop( 8, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_diam, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               spotprop( 9, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_effd, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               spotprop(10, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_temp, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               spotprop(11, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_tvel, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               spotprop(12, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+
+               DO kk=fs_spot_idmax+1,fs_spot_idmax + nspots
+                  WRITE (msg,'(2(i8,1x),3(f12.6,1x))') &
+                       kk, INT(spotprop(1,kk)), &
+                           spotprop(4,kk), &
+                           spotprop(5,kk), &
+                           spotprop(6,kk)
+                  CALL wrf_debug (0, 'SPFire spotprop: '//msg)
+               ENDDO
+
+
+               fs_spot_idmax = fs_spot_idmax + nspots
+
+            ELSE 
+               CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: fs_spotprop is full')
+               nspots = 0
+            ENDIF
+
+            !-------------------------------------------------------------------------------
+            ! Gather fs_spotprop on Master Monitor
+            !-------------------------------------------------------------------------------
+
+            IF ((hist_flag) .AND. (grid%itimestep > 1)) THEN
+
+               gridspotprop(:,:) = ZERO_dp
+
+#if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
+               IF (ntiles > 1) THEN
+
+                  CALL master_gather_tile_data(IamMaster=IamMaster, &
+                                               MasterId= MasterId, &
+                                               npts= nspots, &
+                                               nvectors= nspotprops, &
+                                               thistilearray= spotprop, &
+                                               dataarray= gridspotprop)
+
+               ELSE
+                  gridspotprop(:,:) = spotprop(:,:)
+               ENDIF ! (ntiles > 1)
+#else
+               gridspotprop(:,:) = spotprop(:,:)
+#endif
+               fs_spotprop_id(:) = INT(gridspotprop( 1, :) )
+               fs_spotprop_dt(:) = INT(gridspotprop( 2, :) )
+               fs_spotprop_src(:) = INT(gridspotprop( 3, :) )
+               fs_spotprop_x(:) = gridspotprop( 4, :) 
+               fs_spotprop_y(:) = gridspotprop( 5, :) 
+               fs_spotprop_z(:) = gridspotprop( 6, :) 
+               fs_spotprop_m(:) = gridspotprop( 7, :) 
+               fs_spotprop_d(:) = gridspotprop( 8, :) 
+               fs_spotprop_e(:) = gridspotprop( 9, :) 
+               fs_spotprop_t(:) = gridspotprop(10, :) 
+               fs_spotprop_v(:) = gridspotprop(11, :) 
+               fs_spotprop_dxy(:) = gridspotprop(12, :)       
+               
+           ENDIF ! ((hist_flag) .AND. (grid%itimestep > 1))
+
+
+
+            CALL wrf_debug (wrfdbg, 'SPFire_driver spotprop done')
 
             !=============================================================================== 
             !=============================================================================== 
@@ -2493,36 +2787,24 @@ END FUNCTION order_val
             !******************************************************************
             !******************************************************************
             !*                                                                *
-            !*                  MPI Send firebrands                   *
+            !*                  MPI Send firebrands                           *
             !*                                                                *
             !******************************************************************
             !******************************************************************
-            
-            
-            !-------------------------------------------------------------------------------
-            !-------------------------------------------------------------------------------
-
-            ! Re-PACK before incoming MPI
-
-            !===============================================================================            
-            ! MPI: Send Brands (out of this patch)
-            !===============================================================================
-
+                        
             ! CALL wrf_debug (wrfdbg, 'SPFire_driver mpi transfer particles')
 
             ! Send / Receive arrays: 
             !     3 REAL arrays, 2 INTEGER arrays: fs_p_x, fs_p_y, fs_p_z, fs_p_id, fs_p_dt: 
 
             !   |____|____|____|
-            !   |    | U  |    |
+            !   | UL | U  | UR |
             !   |____|____|____|je
             !   |  L | Me | R  |
             !   |____|____|____|js
-            !   |    | D  |    |
+            !   | DL | D  | DR |
             !   |____|____|____|
             !        is   ie
-
-            ! Diagonal???
 
             !-------------------------------------------------------------------------------
             ! Send any particle?
@@ -2551,13 +2833,29 @@ END FUNCTION order_val
                     p_y  = fs_p_y,   &
                     p_z  = fs_p_z,   &
                     p_id = fs_p_id,  &
-                    p_src = fs_p_src,  &
+                    p_src = fs_p_src,&
                     p_dt = fs_p_dt,  &
                     fs_p_m = fs_p_mass, &
                     fs_p_d = fs_p_diam, &
                     fs_p_e = fs_p_effd, &
                     fs_p_t = fs_p_temp, &
                     fs_p_v = fs_p_tvel)
+
+               ! Send Initial Properties
+               CALL fs_mpi_send2neighbors(task_id=task_id,&
+                    mask=sparse_mask, &
+                    p_x  = fs_ip_x,   &
+                    p_y  = fs_ip_y,   &
+                    p_z  = fs_ip_z,   &
+                    p_id = fs_ip_id,  &
+                    p_src = fs_ip_src,&
+                    p_dt = fs_ip_dt,  &
+                    fs_p_m = fs_ip_mass, &
+                    fs_p_d = fs_ip_diam, &
+                    fs_p_e = fs_ip_effd, &
+                    fs_p_t = fs_ip_temp, &
+                    fs_p_v = fs_ip_tvel)
+
             ENDIF
 #endif
             !-------------------------------------------------------------------------------
@@ -2577,6 +2875,7 @@ END FUNCTION order_val
 
             !-------------------------------------------------------------------------------
             ! Repack all zeros: PACK where mask is TRUE
+            ! Re-PACK array before incoming MPI: incoming particles will append to end of array
             !-------------------------------------------------------------------------------
             sparse_mask = .FALSE. 
             sparse_mask = (fs_p_id>0)
@@ -2591,36 +2890,44 @@ END FUNCTION order_val
             fs_p_effd = PACK(fs_p_effd, sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_temp  = PACK(fs_p_temp , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
             fs_p_tvel  = PACK(fs_p_tvel , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) ) 
+            fs_p_dxy  = PACK(fs_p_dxy , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) ) 
+
+            ! Initial Properties
+            fs_ip_x  = PACK(fs_ip_x,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_y  = PACK(fs_ip_y,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_z  = PACK(fs_ip_z,  sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_id = PACK(fs_ip_id, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
+            fs_ip_src = PACK(fs_ip_src, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
+            fs_ip_dt = PACK(fs_ip_dt, sparse_mask, SPREAD(0,1,fs_array_maxsize) )
+            fs_ip_mass  = PACK(fs_ip_mass , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_diam  = PACK(fs_ip_diam , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_effd = PACK(fs_ip_effd, sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_temp  = PACK(fs_ip_temp , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) )
+            fs_ip_tvel  = PACK(fs_ip_tvel , sparse_mask, SPREAD(ZERO_dp,1,fs_array_maxsize) ) 
+
             
             active_br = COUNT( fs_p_id > 0 )
-
-            ! fs_trk(1, 1:cf%fs_num_tracks) = fs_p_x(1:cf%fs_num_tracks)
-            ! fs_trk(2, 1:cf%fs_num_tracks) = fs_p_y(1:cf%fs_num_tracks)
-            ! fs_trk(3, 1:cf%fs_num_tracks) = fs_p_z(1:cf%fs_num_tracks)
 
             WRITE (msg,'(1(i8,1x))') active_br
             CALL wrf_debug (wrfdbg, 'SPFire_driver pack AFTER mpi_send2neighbors active_br >>> '// msg)
 
 
-        ENDIF
+            !===============================================================================            
+            ! Save active particles to fs_active_inst_fr
+            !===============================================================================            
+
+            CALL count_active_3d(fs_p_id = fs_p_id, &
+                                 fs_p_x  = fs_p_x, &
+                                 fs_p_y  = fs_p_y, &
+                                 fs_p_z  = fs_p_z, &
+                                 active_inst_fr=grid%fs_active_inst_fr, &
+                                 sr      = grid%sr_x)
+
+        ENDIF ! IF (active_br > 0)
 
         !===============================================================================            
         ! Active_br work done ;)
         !===============================================================================            
-        WRITE (msg, '(i8,1x,i8)') COUNT( fs_p_id > 0), active_br
-        CALL wrf_debug (wrfdbg, 'SPFire COUNT( fs_p_id > 0), active_br: '//msg)
-
-        IF (active_br /= COUNT( fs_p_id > 0 ) ) THEN
-           DO kk=1,fs_array_maxsize
-              IF (fs_p_id(kk) > 0) THEN
-
-                 WRITE (msg,'(3(i16,1x),i10,1x,3(f12.6,1x))') &
-                      kk, fs_p_id(kk), fs_p_dt(kk),fs_p_src(kk), &
-                      fs_p_x(kk), fs_p_y(kk), fs_p_z(kk)
-                 CALL wrf_debug (0, 'SPFire debug: '//msg)
-              ENDIF
-           ENDDO
-        ENDIF
 
         IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
@@ -2920,16 +3227,10 @@ END FUNCTION order_val
         !******************************************************************
         !******************************************************************
         !*                                                                *
-        !*                  MPI Receive firebrands                   *
+        !*                  MPI Receive firebrands                        *
         !*                                                                *
         !******************************************************************
         !******************************************************************
-
-        
-        !===============================================================================            
-        ! MPI: Receive Brands (into this patch)
-        !===============================================================================
-
 
 
         !-------------------------------------------------------------------------------
@@ -2958,10 +3259,11 @@ END FUNCTION order_val
               r_y(:) = ZERO_dp
               r_z(:) = ZERO_dp
 
-              ! Receiving p_propertieserties
+              ! Receiving p_properties
               ALLOCATE(r_p_m(nbr_sum), r_p_d(nbr_sum), r_p_e(nbr_sum), r_p_t(nbr_sum), r_p_v(nbr_sum))
               ALLOCATE(fb_mdetv(nbr_sum))
 
+              ! First receive actual particle properties, then add them to fs_p_*, and finally receive initial properties 
               CALL fs_mpi_recv(np_id=nbr_id, task_id=task_id, &
                    r_x=r_x, r_y=r_y, r_z=r_z, &
                    r_id=r_id, r_src=r_src, r_dt=r_dt, &
@@ -3002,6 +3304,7 @@ END FUNCTION order_val
               WRITE (msg,'(2(i8,1x))') active_br, fs_gen_idmax
               CALL wrf_debug (wrfdbg, 'SPFire_driver mpi recv AFTER : ii, fs_gen_idmax >>> '// msg)
 
+              ! Overwrite release properties assigned in CALL generate_firebrands 
               fs_p_mass (prior_br:active_br) = r_p_m
               fs_p_diam (prior_br:active_br) = r_p_d
               fs_p_effd(prior_br:active_br) = r_p_e
@@ -3013,19 +3316,61 @@ END FUNCTION order_val
               !     CALL wrf_debug (wrfdbg, 'SPFire_mpi recv AFTER2  >>> '// msg)
               ! ENDDO
 
+              !-------------------------------------------------------------------------------
+              ! Now Handle Initial Properties
+              !-------------------------------------------------------------------------------
+
+              r_id(:) = 0
+              r_src(:) = 0
+              r_dt(:) = 0
+              r_x(:) = ZERO_dp
+              r_y(:) = ZERO_dp
+              r_z(:) = ZERO_dp
+              r_p_m  = ZERO_dp
+              r_p_d  = ZERO_dp 
+              r_p_e  = ZERO_dp
+              r_p_t  = ZERO_dp 
+              r_p_v  = ZERO_dp
+
+              CALL fs_mpi_recv(np_id=nbr_id, task_id=task_id, &
+                   r_x=r_x, r_y=r_y, r_z=r_z, &
+                   r_id=r_id, r_src=r_src, r_dt=r_dt, &
+                   r_p_m=r_p_m, &
+                   r_p_d=r_p_d, & 
+                   r_p_e=r_p_e, &
+                   r_p_t=r_p_t, & 
+                   r_p_v=r_p_v)
+
+                fs_ip_x(prior_br:active_br)   = r_x
+                fs_ip_y(prior_br:active_br)   = r_y
+                fs_ip_z(prior_br:active_br)   = r_z
+                fs_ip_id(prior_br:active_br)  = r_id
+                fs_ip_dt(prior_br:active_br)  = r_dt
+                fs_ip_src(prior_br:active_br) = r_src
+                fs_ip_mass(prior_br:active_br)= r_p_m
+                fs_ip_diam(prior_br:active_br)= r_p_d
+                fs_ip_effd(prior_br:active_br)= r_p_e
+                fs_ip_temp(prior_br:active_br)= r_p_t
+                fs_ip_tvel(prior_br:active_br)= r_p_v
+
+                fs_p_dxy(prior_br:active_br) = SQRT((fs_p_x(prior_br:active_br) - fs_ip_x(prior_br:active_br))**2 + &
+                                                    (fs_p_y(prior_br:active_br) - fs_ip_y(prior_br:active_br))**2)
+
+
               DEALLOCATE(r_x, r_y, r_z, r_id, r_src, r_dt)
-              !DEALLOCATE(release_mpi_ijk)
-              DEALLOCATE(fb_mdetv)
               DEALLOCATE(r_p_m, r_p_d, r_p_e, r_p_t, r_p_v)
+              DEALLOCATE(fb_mdetv)
+              !-------------------------------------------------------------------------------
+              !-------------------------------------------------------------------------------
 
               ! ELSE         
               !     CALL wrf_debug (wrfdbg,  'SPFire_driver mpi nothing to receive')
-           ENDIF
+           ENDIF !IF (nbr_sum > 0)
            DEALLOCATE(nbr_id)
            !-------------------------------------------------------------------------------
            ! DONE :)
            !-------------------------------------------------------------------------------
-        ENDIF
+        ENDIF ! IF (ntiles > 1)
 #endif
         !===============================================================================
         ! Check history interval 
@@ -3039,10 +3384,53 @@ END FUNCTION order_val
 
 !=============================================================
 
-    
+!=============================================================
+!=============================================================
+
 
 !=============================================================
+    SUBROUTINE master_gather_tile_data(IamMaster, MasterId, npts, nvectors, thistilearray, dataarray)
 !=============================================================
+
+      USE module_firebrand_spotting_mpi,  ONLY: fs_mpi_tilesend2master, &
+                                                fs_mpi_masterrecvtiles 
+
+      IMPLICIT NONE
+
+      LOGICAL, INTENT(IN) :: IamMaster
+      INTEGER, INTENT(IN) :: MasterId
+      INTEGER, INTENT(IN) :: npts
+      INTEGER, INTENT(IN) :: nvectors
+      REAL, INTENT(INOUT), DIMENSION(:,:) :: dataarray
+      REAL, INTENT(IN), DIMENSION(:,:) :: thistilearray
+      
+      INTEGER :: pts_total, ii, kk, kk1, kk2
+      REAL, ALLOCATABLE, DIMENSION(:,:) :: np_arrays
+  
+      !-------------------------------------------------------------
+  
+      IF (.NOT. (IamMaster)) THEN
+
+         CALL fs_mpi_tilesend2master(MasterId=MasterId, &
+                                     nvectors=nvectors, &
+                                     npts    =npts,     &
+                                     thistilearray= thistilearray)
+
+      ENDIF ! (.NOT. (IamMaster))
+
+      IF (IamMaster) THEN                      
+
+         CALL fs_mpi_masterrecvtiles(nvectors=nvectors, &
+                                     npts    =npts,     &
+                                     thistilearray= thistilearray, &
+                                     dataarray=dataarray)
+
+      ENDIF ! (IamMaster)
+!=============================================================
+    END SUBROUTINE master_gather_tile_data
+!=============================================================
+
+
 
 !******************************************************************
 !******************************************************************
@@ -3075,7 +3463,7 @@ END FUNCTION order_val
 
     !-------------------------------------------------------------
 
-        IMPLICIT NONE
+    IMPLICIT NONE
 
         TYPE(domain), INTENT(IN) :: grid 
         INTEGER, INTENT(IN)   :: ims, jms, kms, start_mom3d_dt
@@ -3689,28 +4077,32 @@ END SUBROUTINE remove_br
 
 
 !=============================================================
-PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hgt)
+PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dxy, &
+                           sum_fbrand, land_hgt, &
+                           sparse_mask, travel_dist, sr, sum_fbrand_fr)
 !=============================================================
 
     IMPLICIT NONE
     INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id
     REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: sum_fbrand
-    REAL,    INTENT(IN),    DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z
+    REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: travel_dist, sum_fbrand_fr 
+    REAL,    INTENT(IN),    DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z, fs_p_dxy ! size = fs_array_maxsize
     REAL,    INTENT(IN)    :: land_hgt
+    INTEGER, INTENT(IN)    :: sr
+    LOGICAL, INTENT(INOUT), DIMENSION(fs_array_maxsize)    :: sparse_mask
 
     !INTEGER, INTENT(IN) :: active_br
 
-    !INTEGER, ALLOCATABLE, DIMENSION(:) :: mask_idx
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: rx, ry, rid
-    LOGICAL, DIMENSION(fs_array_maxsize)    :: sparse_mask
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: rx, ry, rid, frx, fry, dxy
     LOGICAL, DIMENSION(fs_array_maxsize)    :: bounds_mask
-    !LOGICAL, ALLOCATABLE, DIMENSION(:) :: bounds_mask
+    !LOGICAL, DIMENSION(fs_array_maxsize)    :: sparse_mask
     INTEGER :: nresets
     INTEGER :: x, y, i0,k ! counters
     !CHARACTER(LEN=10) fmt
 
     !CALL wrf_debug (wrfdbg, 'SPFire_deposit: check')
     sum_fbrand(:,:) = ZERO_dp
+    travel_dist(:,:) = ZERO_dp
 
     !-------------------------------------------------------------------------------
     ! Flag brands near ground (deps_lev is a declared parameter)
@@ -3742,22 +4134,37 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hg
         ! convert position to integer indices
         !-------------------------------------------------------------------------------
 
-        ALLOCATE(rx(nresets),ry(nresets))!, mask_idx(nresets), rid(nresets), bounds_mask(nresets))
+        ALLOCATE(rx(nresets),ry(nresets), frx(nresets),fry(nresets), dxy(nresets))
 
         ! Get indices of particles when sparse_mask = True
         rx(:) = 0
         ry(:) = 0
+        frx(:) = 0
+        fry(:) = 0
+        dxy(:) = 0
 
         rx(1:nresets) = FLOOR(PACK(fs_p_x, sparse_mask))
         ry(1:nresets) = FLOOR(PACK(fs_p_y, sparse_mask))
 
+        !CALL wrf_debug (0, 'SPFire_deposit_br checkpoint 1')
+
+        frx(1:nresets) = frac_atm2fire_ij(PACK(fs_p_x, sparse_mask),sr)
+        fry(1:nresets) = frac_atm2fire_ij(PACK(fs_p_y, sparse_mask),sr)
+        dxy(1:nresets) = PACK(fs_p_dxy, sparse_mask)
+
+        !CALL wrf_debug (0, 'SPFire_deposit_br checkpoint 2')
+
         !-------------------------------------------------------------------------------
-        ! Increment sum_fbrand
+        ! Increment sum_fbrand and get travel_dist
         !-------------------------------------------------------------------------------
 
         DO k=1,nresets
-            sum_fbrand(rx(k),ry(k)) = sum_fbrand(rx(k),ry(k)) + 1.0_dp
+            sum_fbrand(rx(k),ry(k)) = sum_fbrand(rx(k),ry(k)) + 1.0_dp            
+            sum_fbrand_fr(frx(k),fry(k)) = sum_fbrand_fr(frx(k),fry(k)) + 1.0_dp            
+            travel_dist(frx(k),fry(k)) = dxy(k)
         ENDDO
+
+        !CALL wrf_debug (0, 'SPFire_deposit_br checkpoint 3')
 
         !-------------------------------------------------------------------------------
         ! Reset array
@@ -3771,6 +4178,87 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z,  sum_fbrand, land_hg
     ENDIF
 
 END SUBROUTINE deposit_br
+
+
+!=============================================================
+!=============================================================
+
+!=============================================================
+!PURE 
+SUBROUTINE count_active_3d(fs_p_id, fs_p_x, fs_p_y, fs_p_z, active_inst_fr, sr)
+!=============================================================
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN), DIMENSION(:) :: fs_p_id
+
+    INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,ks:ke,jfms:jfme) :: active_inst_fr
+    REAL,    INTENT(IN),    DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z ! size = fs_array_maxsize
+    INTEGER, INTENT(IN)    :: sr
+
+    !INTEGER, INTENT(IN) :: active_br
+
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: frx, fry, frz
+    LOGICAL, DIMENSION(fs_array_maxsize)    :: bounds_mask
+    LOGICAL, DIMENSION(fs_array_maxsize)    :: sparse_mask
+    INTEGER :: k, n ! counters
+
+    !-------------------------------------------------------------------------------
+    ! Flag brands near ground (deps_lev is a declared parameter)
+    !-------------------------------------------------------------------------------
+
+    sparse_mask = .FALSE. 
+    bounds_mask = .FALSE. 
+
+    ! Only deposit particles on this tile
+    bounds_mask = ((FLOOR(fs_p_x) >= is) .OR. &
+                   (FLOOR(fs_p_x) <= ie) .OR. &
+                   (FLOOR(fs_p_y) >= js) .OR. &
+                   (FLOOR(fs_p_y) <= je))
+
+    sparse_mask = ( bounds_mask .AND. fs_p_id > 0 )
+
+    !-------------------------------------------------------------------------------
+    ! Deposit flagged brands
+    !-------------------------------------------------------------------------------
+    n = 0
+    n = COUNT(sparse_mask)
+
+    WRITE (msg,'(i6)') n
+    CALL wrf_debug (wrfdbg, 'SPFire_active total: '//msg)
+
+    IF (n > 0) THEN
+
+        !-------------------------------------------------------------------------------
+        ! convert position to integer indices
+        !-------------------------------------------------------------------------------
+
+        ALLOCATE(frx(n),fry(n), frz(n))
+
+        ! Get indices of particles when sparse_mask = True
+        frx(:) = 0
+        fry(:) = 0
+        frz(:) = 0
+
+        frx(1:n) = frac_atm2fire_ij(PACK(fs_p_x, sparse_mask),sr)
+        fry(1:n) = frac_atm2fire_ij(PACK(fs_p_y, sparse_mask),sr)
+        frz(1:n) = PACK(fs_p_z, sparse_mask)
+
+        !-------------------------------------------------------------------------------
+        ! Increment active positions
+        !-------------------------------------------------------------------------------
+
+        DO k=1,n
+            active_inst_fr(frx(k),frz(k), fry(k)) = active_inst_fr(frx(k),frz(k), fry(k)) + 1.0_dp            
+        ENDDO
+
+        DO k=1,MIN(n,5)
+            WRITE (msg,'(4(i6,x))') frx(k),frz(k), fry(k), active_inst_fr(frx(k),frz(k), fry(k))
+            CALL wrf_debug (wrfdbg, 'SPFire_active loc: '//msg)
+        ENDDO
+
+    ENDIF
+
+END SUBROUTINE count_active_3d
 
 
 !=============================================================
