@@ -2238,12 +2238,12 @@ if(config_flags%ifire.eq.2)then
                ! fs_spotprop_x     = grid%fs_spotprop_x,   &
                ! fs_spotprop_y     = grid%fs_spotprop_y,   &
                ! fs_spotprop_z     = grid%fs_spotprop_z,   &
-               ! fs_spotprop_m     = grid%fs_spotprop_m,   &
+               fs_spotprop_m     = grid%fs_spotprop_m,   &
                ! fs_spotprop_d     = grid%fs_spotprop_d,   &
                ! fs_spotprop_e     = grid%fs_spotprop_e,   &
                ! fs_spotprop_t     = grid%fs_spotprop_t,   &
                ! fs_spotprop_v     = grid%fs_spotprop_v,   & 
-               ! fs_spotprop_dxy   = grid%fs_spotprop_dxy, & 
+               fs_spotprop_dxy   = grid%fs_spotprop_dxy, & 
                fs_max_travel_dist   = grid%fs_max_travel_dist)
 
            
