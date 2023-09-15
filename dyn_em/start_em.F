@@ -2239,6 +2239,7 @@ if(config_flags%ifire.eq.2)then
                ! fs_spotprop_y     = grid%fs_spotprop_y,   &
                ! fs_spotprop_z     = grid%fs_spotprop_z,   &
                fs_spotprop_m     = grid%fs_spotprop_m,   &
+               fs_spotprop_m2     = grid%fs_spotprop_m2,   &
                ! fs_spotprop_d     = grid%fs_spotprop_d,   &
                ! fs_spotprop_e     = grid%fs_spotprop_e,   &
                ! fs_spotprop_t     = grid%fs_spotprop_t,   &

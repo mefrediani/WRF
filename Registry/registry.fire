@@ -359,6 +359,7 @@ rconfig   integer fs_firebrand_max_life_dt       namelist,fire  1     200       
 rconfig   real    fs_firebrand_land_hgt          namelist,fire  1       0.15    -      "fs_firebrand_land_hgt"         "AGL height that firebrands land (in meters)"
 rconfig  logical  fuel_crosswalk                 namelist,fire  max_domains .false. -  "flag - artifact from COFPS used in firebrand_spotting - it does not crosswalk between fuel models."
 rconfig  logical  trackember                     namelist,fire  1     .false.   -      "flag - for test only. Write ember properties on rsl.error files at each timestep - huge rsl files!"
+rconfig  logical  trackspotprop                  namelist,fire  1     .false.   -      "flag - for test only. Write landed-ember properties to rsl.error files"
 rconfig  real     fs_ignthresh                   namelist,fire  1     0         -      "fs_ignthresh"                  "Threshold to ignite a spotfire (0 for no spotting ignition)"
 rconfig  real     fs_ROSthresh                   namelist,fire  1     0.1         -    "fs_ROSthresh"                  "ROS threshold for releasing firebrands"
 #
@@ -397,7 +398,8 @@ state  real    fs_max_travel_dist        *i*j      misc        1         -     r
 #state  real    fs_spotprop_x             {fs_nfb}   misc        1         -      r  "fs_spotprop_x"       "x property of spotting embers i.e. landed ahead of fire" "" 
 #state  real    fs_spotprop_y             {fs_nfb}   misc        1         -      r  "fs_spotprop_y"       "y property of spotting embers i.e. landed ahead of fire" "" 
 #state  real    fs_spotprop_z             {fs_nfb}   misc        1         -      r  "fs_spotprop_z"       "z property of spotting embers i.e. landed ahead of fire" "" 
-state  real    fs_spotprop_m             {fs_nfb}   misc        1         -      r  "fs_spotprop_m"       "mass property of spotting embers i.e. landed ahead of fire" "" 
+state  real    fs_spotprop_m             {fs_nfb}   misc        1         -      r  "fs_spotprop_m"       "mass property of spotting embers initial" "" 
+state  real    fs_spotprop_m2             {fs_nfb}   misc        1         -      r  "fs_spotprop_m2"       "mass property of spotting embers at landing" "" 
 #state  real    fs_spotprop_d             {fs_nfb}   misc        1         -      r  "fs_spotprop_d"       "diam property of spotting embers i.e. landed ahead of fire" "" 
 #state  real    fs_spotprop_e             {fs_nfb}   misc        1         -      r  "fs_spotprop_e"       "effdiam property of spotting embers i.e. landed ahead of fire" "" 
 #state  real    fs_spotprop_t             {fs_nfb}   misc        1         -      r  "fs_spotprop_t"       "temp property of spotting embers i.e. landed ahead of fire" "" 

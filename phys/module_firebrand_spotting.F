@@ -216,6 +216,7 @@ CONTAINS
         ! fs_spotprop_y,   &
         ! fs_spotprop_z,   &
         fs_spotprop_m,   &
+        fs_spotprop_m2,  &
         ! fs_spotprop_d,   &
         ! fs_spotprop_e,   &
         ! fs_spotprop_t,   &
@@ -260,7 +261,7 @@ CONTAINS
 
         INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst_fr
         ! REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_x,fs_spotprop_y,fs_spotprop_z
-        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m, fs_spotprop_dxy ! fs_spotprop_d,fs_spotprop_e
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m,fs_spotprop_m2, fs_spotprop_dxy ! fs_spotprop_d,fs_spotprop_e
         ! REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_t,fs_spotprop_v
         ! INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_spotprop_id, fs_spotprop_dt, fs_spotprop_src 
 
@@ -359,6 +360,7 @@ CONTAINS
         ! fs_spotprop_y(:) = 0.0_dp  
         ! fs_spotprop_z(:) = 0.0_dp  
         fs_spotprop_m(:) = 0.0_dp  
+        fs_spotprop_m2(:) = 0.0_dp  
         ! fs_spotprop_d(:) = 0.0_dp  
         ! fs_spotprop_e(:) = 0.0_dp  
         ! fs_spotprop_t(:) = 0.0_dp  
@@ -1263,7 +1265,7 @@ END FUNCTION order_val
         prop%p_temp  = arr(3)   ! 900.0_dp   ! K
         ! termvel should start with 0m/s because firebrand is released at top of trajectory
         prop%p_tvel  = arr(4)   ! 0.0_dp     ! m/s 
-        prop%p_mass  =  (firebrand_dens * pi * (prop%p_effd/1000.0_dp)**2)/6.0_dp  ! g
+        prop%p_mass  =  (firebrand_dens * pi * (prop%p_effd/1000.0_dp)**3)/6.0_dp  ! g
  
     END FUNCTION firebrand_property
 
@@ -1469,6 +1471,7 @@ END FUNCTION order_val
         ! firebrand diameter from (m) to (mm)
         p_diam = 1000.0_dp * p_diam
         p_effd = 1000.0_dp * p_effd
+        !p_mass = 100.0_dp * p_mass
 
     END SUBROUTINE burnout
 
@@ -1668,6 +1671,7 @@ END FUNCTION order_val
         ! fs_spotprop_y,   &
         ! fs_spotprop_z,   &
         fs_spotprop_m,   &
+        fs_spotprop_m2,   &
         ! fs_spotprop_d,   &
         ! fs_spotprop_e,   &
         ! fs_spotprop_t,   &
@@ -1738,7 +1742,7 @@ END FUNCTION order_val
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_mass, fs_p_diam, fs_p_effd
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_p_temp, fs_p_tvel, fs_p_dxy
         ! REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_x,fs_spotprop_y,fs_spotprop_z
-        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m, fs_spotprop_dxy !fs_spotprop_d,fs_spotprop_e
+        REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m,fs_spotprop_m2, fs_spotprop_dxy !fs_spotprop_d,fs_spotprop_e
         ! REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_t,fs_spotprop_v
         ! INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_spotprop_id, fs_spotprop_dt, fs_spotprop_src 
 
@@ -1923,6 +1927,7 @@ END FUNCTION order_val
             ! fs_spotprop_y  = ZERO_dp
             ! fs_spotprop_z  = ZERO_dp
             fs_spotprop_m  = ZERO_dp
+            fs_spotprop_m2  = ZERO_dp
             ! fs_spotprop_d  = ZERO_dp
             ! fs_spotprop_e  = ZERO_dp
             ! fs_spotprop_t  = ZERO_dp
@@ -2725,14 +2730,18 @@ END FUNCTION order_val
                ! spotprop(11, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_tvel, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
                ! spotprop(12, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
 
-               fs_spotprop_m( 1, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               fs_spotprop_dxy( 2, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+               fs_spotprop_m(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               fs_spotprop_m2(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+               fs_spotprop_dxy(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
 
-               DO kk=fs_spot_idmax+1,fs_spot_idmax + nspots
-                  WRITE (msg,'(1(i8,1x),3(f12.6,1x))') &
-                               kk, spotprop(1,kk), spotprop(2,kk)
-                  CALL wrf_debug (0, 'SPFire spotprop: '//msg)
-               ENDDO
+
+               IF (cf%trackspotprop) THEN
+                  DO kk=fs_spot_idmax+1,fs_spot_idmax + nspots
+                     WRITE (msg,'(1(i8,1x),3(f12.6,1x))') &
+                          kk, fs_spotprop_m(kk),fs_spotprop_m2(kk), fs_spotprop_dxy(kk)
+                     CALL wrf_debug (0, 'SPFire spotprop: '//msg)
+                  ENDDO
+               ENDIF
 
                fs_spot_idmax = fs_spot_idmax + nspots
 
