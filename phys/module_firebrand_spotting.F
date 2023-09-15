@@ -4129,8 +4129,8 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dxy, &
     nresets = 0
     nresets = COUNT(sparse_mask)
 
-    WRITE (msg,'(i6)') nresets
-    CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
+    ! WRITE (msg,'(i6)') nresets
+    ! CALL wrf_debug (wrfdbg, 'SPFire_deposit total: '//msg)
 
     IF (nresets > 0) THEN
 
