@@ -203,12 +203,12 @@ CONTAINS
         fs_count_landed_all,    &
         fs_count_landed_hist,   &
         fs_count_landed_hist_fr,&
-        fs_landing_mask, &
+        !fs_landing_mask, &
         fs_spotting_lkhd,&
         fs_frac_landed,  &
         fs_fire_ROSdt,   &
         fs_count_reset,&
-        fs_active_inst_fr,&
+        !fs_active_inst_fr,&
         ! fs_spotprop_id,  &
         ! fs_spotprop_dt,  &
         ! fs_spotprop_src, &
@@ -256,10 +256,10 @@ CONTAINS
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_ip_temp, fs_ip_tvel
 
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_all, fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
-        INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
+        !INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_fire_ROSdt, fs_count_landed_hist_fr, fs_max_travel_dist
 
-        INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst_fr
+        !INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst_fr
         ! REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_x,fs_spotprop_y,fs_spotprop_z
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_m,fs_spotprop_m2, fs_spotprop_dxy ! fs_spotprop_d,fs_spotprop_e
         ! REAL,    INTENT(INOUT), DIMENSION(:) :: fs_spotprop_t,fs_spotprop_v
@@ -344,7 +344,7 @@ CONTAINS
         fs_ip_temp = 0.0_dp
         fs_ip_tvel = 0.0_dp
 
-        fs_landing_mask(:,:) = 0
+        !fs_landing_mask(:,:) = 0
         fs_count_landed_all (:,:) = 0.0_dp
         fs_count_landed_hist(:,:) = 0.0_dp
         fs_count_landed_hist_fr(:,:) = 0.0_dp
@@ -370,7 +370,7 @@ CONTAINS
 
 
 
-        fs_active_inst_fr(:,:,:) = 0
+        !fs_active_inst_fr(:,:,:) = 0
 
         !-------------------------------------------------------------------------------
 
@@ -1631,7 +1631,7 @@ END FUNCTION order_val
         fs_p_y,                &
         fs_p_z,                &
         fs_gen_hist,           &
-        fs_gen_inst,           &
+        !fs_gen_inst,           &
         fs_gen_inst_fr,        &
         fs_p_mass,             &  
         fs_p_diam,             & 
@@ -1658,12 +1658,12 @@ END FUNCTION order_val
         fs_count_landed_all,   &
         fs_count_landed_hist,  &
         fs_count_landed_hist_fr,&
-        fs_landing_mask,       &
+        !fs_landing_mask,       &
         fs_spotting_lkhd,      &
         fs_frac_landed,        &
         fs_fuel_spotting_risk, &
         fs_count_reset,        &
-        fs_active_inst_fr,&
+        !fs_active_inst_fr,&
         ! fs_spotprop_id,  &
         ! fs_spotprop_dt,  &
         ! fs_spotprop_src, &
@@ -1726,7 +1726,7 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
         ! Local Parameters 
         !-------------------------------------------------------------------------------
-        INTEGER, PARAMETER :: nspotprops = 2
+        !INTEGER, PARAMETER :: nspotprops = 2
         INTEGER, PARAMETER :: nspotmax = 1000 ! move this to namelist?
 
         !-------------------------------------------------------------------------------
@@ -1754,11 +1754,13 @@ END FUNCTION order_val
 
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
-        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_hist, fs_gen_inst
+        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_gen_hist !, fs_gen_inst !fs_landing_mask,
         ! fire memory bounds, not fire tile bounds
         REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt, fs_count_landed_hist_fr, fs_max_travel_dist
         INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_gen_inst_fr
-        INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,ks:ke,jfms:jfme) :: fs_active_inst_fr
+        !INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,ks:ke,jfms:jfme) :: fs_active_inst_fr
+
+        INTEGER, DIMENSION(ims:ime,jms:jme) :: fs_landing_mask
 
         !-------------------------------------------------------------------------------
         ! Parameters
@@ -1789,7 +1791,7 @@ END FUNCTION order_val
         REAL,    ALLOCATABLE, DIMENSION(:,:) :: travel_dist
         LOGICAL, ALLOCATABLE, DIMENSION(:) :: deposit_mask
 
-        REAL, DIMENSION(nspotprops, nspotmax) :: spotprop
+        !REAL, DIMENSION(nspotprops, nspotmax) :: spotprop
         ! REAL, DIMENSION(nspotprops, nspotmax) :: gridspotprop
 
         REAL, DIMENSION(ims:ime, jms:jme) :: dt_sum_landed ! sum timestep's deposited fb in 2-D memory array
@@ -1918,7 +1920,7 @@ END FUNCTION order_val
             fs_fuel_spotting_risk(:,:) = ZERO_dp
             fs_gen_hist(ims:ime,jms:jme) = 0
             fs_count_reset      = .FALSE.
-            spotprop(:,:) = ZERO_dp
+            !spotprop(:,:) = ZERO_dp
             ! gridspotprop(:,:) = ZERO_dp
             ! fs_spotprop_id = ZERO_dp
             ! fs_spotprop_dt = ZERO_dp
@@ -1926,15 +1928,16 @@ END FUNCTION order_val
             ! fs_spotprop_x  = ZERO_dp
             ! fs_spotprop_y  = ZERO_dp
             ! fs_spotprop_z  = ZERO_dp
-            fs_spotprop_m  = ZERO_dp
-            fs_spotprop_m2  = ZERO_dp
             ! fs_spotprop_d  = ZERO_dp
             ! fs_spotprop_e  = ZERO_dp
             ! fs_spotprop_t  = ZERO_dp
             ! fs_spotprop_v  = ZERO_dp
-            fs_spotprop_dxy= ZERO_dp
             
         ENDIF
+
+        fs_spotprop_m  = ZERO_dp
+        fs_spotprop_m2  = ZERO_dp
+        fs_spotprop_dxy= ZERO_dp
 
         fs_landing_mask(ims:ime,jms:jme) = 0
         ROS_gen_thresh = cf%fs_ROSthresh
@@ -1990,7 +1993,7 @@ END FUNCTION order_val
 
         IF (fs_last_gen_dt >= fs_gen_dt) THEN  
 
-           fs_gen_inst(ims:ime,jms:jme) = 0
+           !fs_gen_inst(ims:ime,jms:jme) = 0
            fs_gen_inst_fr(ifms:ifme,jfms:jfme) = 0
            fs_fire_ROSdt(ifms:ifme,jfms:jfme) = ZERO_dp
 
@@ -2312,7 +2315,7 @@ END FUNCTION order_val
                     fs_gen_hist(INT(release_i(kk)),INT(release_j(kk))) = &
                         fs_gen_hist(INT(release_i(kk)),INT(release_j(kk))) + 1
 
-                    fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) = 1
+                    !fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) = 1
 
                 ENDDO
             
@@ -2716,40 +2719,41 @@ END FUNCTION order_val
             !-------------------------------------------------------------------------------
             nspots = 0
             nspots = COUNT(deposit_mask)
-            IF (fs_spot_idmax + nspots <= fs_nfb) THEN
-               ! spotprop( 1, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_id, deposit_mask, SPREAD(0,1,fs_nfb)) 
-               ! spotprop( 2, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_dt, deposit_mask, SPREAD(0,1,fs_nfb)) 
-               ! spotprop( 3, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_src, deposit_mask, SPREAD(0,1,fs_nfb)) 
-               ! spotprop( 4, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_x, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
-               ! spotprop( 5, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_y, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
-               ! spotprop( 6, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_z, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
-               ! spotprop( 7, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               ! spotprop( 8, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_diam, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               ! spotprop( 9, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_effd, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               ! spotprop(10, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_temp, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               ! spotprop(11, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_tvel, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               ! spotprop(12, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+            IF (cf%trackspotprop) THEN
+               IF (fs_spot_idmax + nspots <= fs_nfb) THEN
+                  ! spotprop( 1, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_id, deposit_mask, SPREAD(0,1,fs_nfb)) 
+                  ! spotprop( 2, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_dt, deposit_mask, SPREAD(0,1,fs_nfb)) 
+                  ! spotprop( 3, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_src, deposit_mask, SPREAD(0,1,fs_nfb)) 
+                  ! spotprop( 4, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_x, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+                  ! spotprop( 5, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_y, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+                  ! spotprop( 6, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_z, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+                  ! spotprop( 7, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  ! spotprop( 8, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_diam, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  ! spotprop( 9, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_effd, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  ! spotprop(10, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_temp, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  ! spotprop(11, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_tvel, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  ! spotprop(12, fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
 
-               fs_spotprop_m(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               fs_spotprop_m2(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
-               fs_spotprop_dxy(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
+                  fs_spotprop_m(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_ip_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  fs_spotprop_m2(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_mass, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb))
+                  fs_spotprop_dxy(fs_spot_idmax + 1 : fs_spot_idmax + nspots) = PACK(fs_p_dxy, deposit_mask, SPREAD(ZERO_dp,1,fs_nfb)) 
 
 
-               IF (cf%trackspotprop) THEN
+
                   DO kk=fs_spot_idmax+1,fs_spot_idmax + nspots
                      WRITE (msg,'(1(i8,1x),3(f12.6,1x))') &
                           kk, fs_spotprop_m(kk),fs_spotprop_m2(kk), fs_spotprop_dxy(kk)
                      CALL wrf_debug (0, 'SPFire spotprop: '//msg)
                   ENDDO
+
+
+                  fs_spot_idmax = fs_spot_idmax + nspots
+
+               ELSE 
+                  CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: fs_spotprop is full')
+                  nspots = 0
                ENDIF
-
-               fs_spot_idmax = fs_spot_idmax + nspots
-
-            ELSE 
-               CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: fs_spotprop is full')
-               nspots = 0
             ENDIF
-
 !             !-------------------------------------------------------------------------------
 !             ! Gather fs_spotprop on Master Monitor
 !             !-------------------------------------------------------------------------------
@@ -2929,12 +2933,13 @@ END FUNCTION order_val
             ! Save active particles to fs_active_inst_fr
             !===============================================================================            
 
-            CALL count_active_3d(fs_p_id = fs_p_id, &
-                                 fs_p_x  = fs_p_x, &
-                                 fs_p_y  = fs_p_y, &
-                                 fs_p_z  = fs_p_z, &
-                                 active_inst_fr=grid%fs_active_inst_fr, &
-                                 sr      = grid%sr_x)
+            ! CALL count_active_3d(fs_p_id = fs_p_id, &
+            !                      fs_p_x  = fs_p_x, &
+            !                      fs_p_y  = fs_p_y, &
+            !                      fs_p_z  = fs_p_z, &
+            !                      active_inst_fr=grid%fs_active_inst_fr, &
+            !                      sr      = grid%sr_x)            
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver wrote active_3d  ----------------------------------------- ') 
 
         ENDIF ! IF (active_br > 0)
 
@@ -2981,6 +2986,8 @@ END FUNCTION order_val
         !===============================================================================
         
         IF ((hist_flag) .AND. (grid%itimestep > 1)) THEN
+
+            CALL wrf_debug (wrfdbg, 'SPFire_driver prepping output  ----------------------------------------- ') 
 
             fs_count_reset = .TRUE. ! true
             fs_frac_landed(ims:ime, jms:jme) = ZERO_dp
@@ -3029,6 +3036,9 @@ END FUNCTION order_val
                 !-------------------------------------------------------------------------------
 
                 IF (ndep > 0) THEN 
+
+                   CALL wrf_debug (wrfdbg, 'SPFire_driver starting spotting risk  ----------------------------------------- ') 
+                   ! if it stops here, it's the tile (not memory) array 
 
                     ! Calculate fuel risk 
                     !-------------------------------------------------------------------------------
@@ -3231,6 +3241,8 @@ END FUNCTION order_val
 
             ENDIF
 
+            CALL wrf_debug (wrfdbg, 'SPFire_driver done with spotting risk  ----------------------------------------- ') 
+
         ENDIF ! hist_flag
 
         !===============================================================================            
@@ -3391,6 +3403,8 @@ END FUNCTION order_val
 
         hist_flag = .FALSE. 
 
+            
+        CALL wrf_debug (wrfdbg, 'SPFire_driver End of module ----------------------------------------- ') 
 
     END SUBROUTINE firebrand_spotting_em_driver
 !=============================================================

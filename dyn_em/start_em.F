@@ -2226,12 +2226,12 @@ if(config_flags%ifire.eq.2)then
                fs_count_landed_all   = grid%fs_count_landed_all, &
                fs_count_landed_hist  = grid%fs_count_landed_hist,&
                fs_count_landed_hist_fr= grid%fs_count_landed_hist_fr,&
-               fs_landing_mask       = grid%fs_landing_mask,     &
+               !fs_landing_mask       = grid%fs_landing_mask,     &
                fs_spotting_lkhd      = grid%fs_spotting_lkhd,    &
                fs_frac_landed        = grid%fs_frac_landed,      &
                fs_fire_ROSdt         = grid%fs_fire_ROSdt,       &
                fs_count_reset        = grid%fs_count_reset,      &
-               fs_active_inst_fr    = grid%fs_active_inst_fr,    &
+               !fs_active_inst_fr    = grid%fs_active_inst_fr,    &
                ! fs_spotprop_id    = grid%fs_spotprop_id,  &
                ! fs_spotprop_dt    = grid%fs_spotprop_dt,  &
                ! fs_spotprop_src   = grid%fs_spotprop_src, &

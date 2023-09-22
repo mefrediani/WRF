@@ -11,7 +11,8 @@
 # ------------------------------------------------------------------------------------------------------------------------
 # 
 
-package   fire_sfire    ifire==2                    -             state:avg_fuel_frac,bbb,betafl,burnt_area_dt,canhfx,canqfx,dzdxf,dzdyf,fcanhfx,fcanqfx,fgip,fgrnhfx,fgrnqfx,fire_area,fire_smoke,flame_length,fmc_equi,fmc_g,fmc_gc,fmep,fmc_lag,fmoist_lasttime,fmoist_nexttime,fuel_frac,fuel_time,fxlat,fxlong,fz0,grnhfx,grnhfx_fu,grnqfx,grnqfx_fu,iboros,ischap,lfn,lfn_0,lfn_1,lfn_2,lfn_hist,lfn_s0,lfn_s1,lfn_s2,lfn_s3,lfn_time,nfuel_cat,phiwc,psfc_old,q2_old,r_0,rain_old,rh_fire,ros,ros_front,rqvfrten,rthfrten,t2_old,tign_g,uah,uf,vah,vf,zsf,fs_last_gen_dt,fs_gen_idmax,fs_spot_idmax,fs_count_reset,fs_fire_ROSdt,fs_fire_area,fs_fuel_spotting_risk,fs_count_landed_all,fs_count_landed_hist,fs_landing_mask,fs_gen_inst,fs_gen_inst_fr,fs_gen_hist,fs_frac_landed,fs_spotting_lkhd,fs_active_inst_fr,fs_count_landed_hist_fr,fs_max_travel_dist
+package   fire_sfire    ifire==2                    -             state:avg_fuel_frac,bbb,betafl,burnt_area_dt,canhfx,canqfx,dzdxf,dzdyf,fcanhfx,fcanqfx,fgip,fgrnhfx,fgrnqfx,fire_area,fire_smoke,flame_length,fmc_equi,fmc_g,fmc_gc,fmep,fmc_lag,fmoist_lasttime,fmoist_nexttime,fuel_frac,fuel_time,fxlat,fxlong,fz0,grnhfx,grnhfx_fu,grnqfx,grnqfx_fu,iboros,ischap,lfn,lfn_0,lfn_1,lfn_2,lfn_hist,lfn_s0,lfn_s1,lfn_s2,lfn_s3,lfn_time,nfuel_cat,phiwc,psfc_old,q2_old,r_0,rain_old,rh_fire,ros,ros_front,rqvfrten,rthfrten,t2_old,tign_g,uah,uf,vah,vf,zsf,fs_last_gen_dt,fs_gen_idmax,fs_spot_idmax,fs_count_reset,fs_fuel_spotting_risk,fs_fire_ROSdt,fs_fire_area,fs_count_landed_all,fs_count_landed_hist,fs_gen_inst_fr,fs_gen_hist,fs_frac_landed,fs_spotting_lkhd,fs_count_landed_hist_fr,fs_max_travel_dist,fs_spotprop_dxy,fs_spotprop_m,fs_spotprop_m2
+# fs_landing_mask,fs_gen_inst,fs_active_inst_fr,
 
 package  fire_fmoist_run   fmoisti_run==1           -             state:fmc_gc,fmep,fmc_equi,fmc_lag,rain_old,t2_old,psfc_old,rh_fire
 package  fire_fmoist_interp fmoisti_interp==1       -             state:fmc_gc
@@ -392,49 +393,49 @@ state  real    fs_spotting_lkhd          ij        misc        1         -      
 state  integer fs_active_inst_fr        *i{k}*j    fire        1         z      h  "fs_active_inst_fr"	  "Active firebrands - instantaneous - on fire refined mesh"
 state  real    fs_count_landed_hist_fr   *i*j      misc        1         -     rh  "fs_count_landed_hist_fr" "firebrand count: landed during history interval - on fire mesh"
 state  real    fs_max_travel_dist        *i*j      misc        1         -     rh  "fs_max_travel_dist"   "Max travel distance of landed embers"
-#state  integer fs_spotprop_id            {fs_nfb}   misc        1         -      r  "fs_spotprop_id"      "ID of spotting embers i.e. landed ahead of fire" "" 
-#state  integer fs_spotprop_dt            {fs_nfb}   misc        1         -      r  "fs_spotprop_dt"      "Dt of spotting embers i.e. landed ahead of fire" "" 
-#state  integer fs_spotprop_src           {fs_nfb}   misc        1         -      r  "fs_spotprop_src"     "tile source of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_x             {fs_nfb}   misc        1         -      r  "fs_spotprop_x"       "x property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_y             {fs_nfb}   misc        1         -      r  "fs_spotprop_y"       "y property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_z             {fs_nfb}   misc        1         -      r  "fs_spotprop_z"       "z property of spotting embers i.e. landed ahead of fire" "" 
-state  real    fs_spotprop_m             {fs_nfb}   misc        1         -      r  "fs_spotprop_m"       "mass property of spotting embers initial" "" 
-state  real    fs_spotprop_m2             {fs_nfb}   misc        1         -      r  "fs_spotprop_m2"       "mass property of spotting embers at landing" "" 
-#state  real    fs_spotprop_d             {fs_nfb}   misc        1         -      r  "fs_spotprop_d"       "diam property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_e             {fs_nfb}   misc        1         -      r  "fs_spotprop_e"       "effdiam property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_t             {fs_nfb}   misc        1         -      r  "fs_spotprop_t"       "temp property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_v             {fs_nfb}   misc        1         -      r  "fs_spotprop_v"       "tvel property of spotting embers i.e. landed ahead of fire" "" 
-state  real    fs_spotprop_dxy           {fs_nfb}   misc        1         -      r  "fs_spotprop_dxy"     "distance of spotting embers i.e. landed ahead of fire" "" 
-##
+#state  integer fs_spotprop_id            {fs_nfb}   fire        1         -      r  "fs_spotprop_id"      "ID of spotting embers i.e. landed ahead of fire" "" 
+#state  integer fs_spotprop_dt            {fs_nfb}   fire        1         -      r  "fs_spotprop_dt"      "Dt of spotting embers i.e. landed ahead of fire" "" 
+#state  integer fs_spotprop_src           {fs_nfb}   fire        1         -      r  "fs_spotprop_src"     "tile source of spotting embers i.e. landed ahead of fire" "" 
+#state  real    fs_spotprop_x             {fs_nfb}   fire        1         -      r  "fs_spotprop_x"       "x property of spotting embers i.e. landed ahead of fire" "" 
+#state  real    fs_spotprop_y             {fs_nfb}   fire        1         -      r  "fs_spotprop_y"       "y property of spotting embers i.e. landed ahead of fire" "" 
+#state  real    fs_spotprop_z             {fs_nfb}   fire        1         -      r  "fs_spotprop_z"       "z property of spotting embers i.e. landed ahead of fire" "" 
+state  real    fs_spotprop_m             {fs_nfb}    fire        1         -      r  "fs_spotprop_m"       "mass property of spotting embers initial" "" 
+state  real    fs_spotprop_m2             {fs_nfb}   fire        1         -      r  "fs_spotprop_m2"       "mass property of spotting embers at landing" "" 
+#state  real    fs_spotprop_d             {fs_nfb}   fire        1         -      r  "fs_spotprop_d"       "diam property of spotting embers i.e. landed ahead of fire" "" 
+#state  real    fs_spotprop_e             {fs_nfb}   fire        1         -      r  "fs_spotprop_e"       "effdiam property of spotting embers i.e. landed ahead of fire" "" 
+#state  real    fs_spotprop_t             {fs_nfb}   fire        1         -      r  "fs_spotprop_t"       "temp property of spotting embers i.e. landed ahead of fire" "" 
+#state  real    fs_spotprop_v             {fs_nfb}   fire        1         -      r  "fs_spotprop_v"       "tvel property of spotting embers i.e. landed ahead of fire" "" 
+state  real    fs_spotprop_dxy           {fs_nfb}    fire        1         -      r  "fs_spotprop_dxy"     "distance of spotting embers i.e. landed ahead of fire" "" 
+## 
 # ------------------------------------------------------------------------------------------------------------------------
 # Particle properties: fs_p_[property_name]
 # 
-state integer  fs_p_id             {fs_maxsize}    dyn_em      1         -      r  "fs_p_id"	          "particle unique ID" "ID"
-state integer  fs_p_src            {fs_maxsize}    dyn_em      1         -      r  "fs_p_src"	          "particle source ID - source MPI proc" "src"
-state integer  fs_p_dt             {fs_maxsize}    dyn_em      1         -      r  "fs_p_dt"	          "particle active time steps" "count"
-state  real    fs_p_x              {fs_maxsize}    dyn_em      1         -      r  "fs_p_x"	          "particle x position" "index"
-state  real    fs_p_y              {fs_maxsize}    dyn_em      1         -      r  "fs_p_y"	          "particle y position" "index"
-state  real    fs_p_z              {fs_maxsize}    dyn_em      1         -      r  "fs_p_z"	          "particle z position" "index"
-state  real    fs_p_mass	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_mass"	          "firebrand mass"                  "g"
-state  real    fs_p_diam	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_diam"	          "firebrand diameter"              "mm"
-state  real    fs_p_effd	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_effd"	          "firebrand effective diameter"    "mm"
-state  real    fs_p_temp	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_temp"	          "firebrand temp"                  "K"
-state  real    fs_p_tvel	   {fs_maxsize}    dyn_em      1         -      r  "fs_p_tvel"	          "firebrand terminal velocity"     "m/s"
-state  real    fs_p_dxy            {fs_maxsize}    dyn_em      1         -      r  "fs_p_dxy"	          "firebrand travel distance" "grid points"
+state integer  fs_p_id             {fs_maxsize}    fire      1         -      r  "fs_p_id"	          "particle unique ID" "ID"
+state integer  fs_p_src            {fs_maxsize}    fire      1         -      r  "fs_p_src"	          "particle source ID - source MPI proc" "src"
+state integer  fs_p_dt             {fs_maxsize}    fire      1         -      r  "fs_p_dt"	          "particle active time steps" "count"
+state  real    fs_p_x              {fs_maxsize}    fire      1         -      r  "fs_p_x"	          "particle x position" "index"
+state  real    fs_p_y              {fs_maxsize}    fire      1         -      r  "fs_p_y"	          "particle y position" "index"
+state  real    fs_p_z              {fs_maxsize}    fire      1         -      r  "fs_p_z"	          "particle z position" "index"
+state  real    fs_p_mass	   {fs_maxsize}    fire      1         -      r  "fs_p_mass"	          "firebrand mass"                  "g"
+state  real    fs_p_diam	   {fs_maxsize}    fire      1         -      r  "fs_p_diam"	          "firebrand diameter"              "mm"
+state  real    fs_p_effd	   {fs_maxsize}    fire      1         -      r  "fs_p_effd"	          "firebrand effective diameter"    "mm"
+state  real    fs_p_temp	   {fs_maxsize}    fire      1         -      r  "fs_p_temp"	          "firebrand temp"                  "K"
+state  real    fs_p_tvel	   {fs_maxsize}    fire      1         -      r  "fs_p_tvel"	          "firebrand terminal velocity"     "m/s"
+state  real    fs_p_dxy            {fs_maxsize}    fire      1         -      r  "fs_p_dxy"	          "firebrand travel distance" "grid points"
 #
 # Initial particle properties
 #
-state integer  fs_ip_id             {fs_maxsize}    dyn_em      1         -      r  "fs_ip_id"	          "particle unique ID" "ID"
-state integer  fs_ip_src            {fs_maxsize}    dyn_em      1         -      r  "fs_ip_src"	          "particle source ID - source MPI proc" "src"
-state integer  fs_ip_dt             {fs_maxsize}    dyn_em      1         -      r  "fs_ip_dt"	          "particle active time steps" "count"
-state  real    fs_ip_x              {fs_maxsize}    dyn_em      1         -      r  "fs_ip_x"	          "particle x position" "index"
-state  real    fs_ip_y              {fs_maxsize}    dyn_em      1         -      r  "fs_ip_y"	          "particle y position" "index"
-state  real    fs_ip_z              {fs_maxsize}    dyn_em      1         -      r  "fs_ip_z"	          "particle z position" "index"
-state  real    fs_ip_mass	    {fs_maxsize}    dyn_em      1         -      r  "fs_ip_mass"	  "firebrand mass"                  "g"
-state  real    fs_ip_diam	    {fs_maxsize}    dyn_em      1         -      r  "fs_ip_diam"	  "firebrand diameter"              "mm"
-state  real    fs_ip_effd	    {fs_maxsize}    dyn_em      1         -      r  "fs_ip_effd"	  "firebrand effective diameter"    "mm"
-state  real    fs_ip_temp	    {fs_maxsize}    dyn_em      1         -      r  "fs_ip_temp"	  "firebrand temp"                  "K"
-state  real    fs_ip_tvel	    {fs_maxsize}    dyn_em      1         -      r  "fs_ip_tvel"	  "firebrand terminal velocity"     "m/s"
+state integer  fs_ip_id             {fs_maxsize}    fire      1         -      r  "fs_ip_id"	          "particle unique ID" "ID"
+state integer  fs_ip_src            {fs_maxsize}    fire      1         -      r  "fs_ip_src"	          "particle source ID - source MPI proc" "src"
+state integer  fs_ip_dt             {fs_maxsize}    fire      1         -      r  "fs_ip_dt"	          "particle active time steps" "count"
+state  real    fs_ip_x              {fs_maxsize}    fire      1         -      r  "fs_ip_x"	          "particle x position" "index"
+state  real    fs_ip_y              {fs_maxsize}    fire      1         -      r  "fs_ip_y"	          "particle y position" "index"
+state  real    fs_ip_z              {fs_maxsize}    fire      1         -      r  "fs_ip_z"	          "particle z position" "index"
+state  real    fs_ip_mass	    {fs_maxsize}    fire      1         -      r  "fs_ip_mass"	  "firebrand mass"                  "g"
+state  real    fs_ip_diam	    {fs_maxsize}    fire      1         -      r  "fs_ip_diam"	  "firebrand diameter"              "mm"
+state  real    fs_ip_effd	    {fs_maxsize}    fire      1         -      r  "fs_ip_effd"	  "firebrand effective diameter"    "mm"
+state  real    fs_ip_temp	    {fs_maxsize}    fire      1         -      r  "fs_ip_temp"	  "firebrand temp"                  "K"
+state  real    fs_ip_tvel	    {fs_maxsize}    fire      1         -      r  "fs_ip_tvel"	  "firebrand terminal velocity"     "m/s"
 # ------------------------------------------------------------------------------------------------------------------------
 # ========================================================================================================================
 # End of Firebrand Spotting section
