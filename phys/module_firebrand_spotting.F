@@ -2972,18 +2972,18 @@ END FUNCTION order_val
             travel_dist(ifms:ifme, jfms:jfme) = ZERO_dp
             nresets = 0
 
-            !-------------------------------------------------------------------------------
-            sparse_mask = .FALSE. 
-            sparse_mask = (fs_p_id > 0 .AND. &
-                          (FLOOR(fs_p_x) < is .OR. & ! LEFT
-                           FLOOR(fs_p_x) > ie .OR. & ! RIGHT
-                           FLOOR(fs_p_y) > je .OR. & ! UP
-                           FLOOR(fs_p_y) < js ))     ! DONW
+            ! !-------------------------------------------------------------------------------
+            ! sparse_mask = .FALSE. 
+            ! sparse_mask = (fs_p_id > 0 .AND. &
+            !               (FLOOR(fs_p_x) < is .OR. & ! LEFT
+            !                FLOOR(fs_p_x) > ie .OR. & ! RIGHT
+            !                FLOOR(fs_p_y) > je .OR. & ! UP
+            !                FLOOR(fs_p_y) < js ))     ! DONW
                    
 
-            WRITE (msg,'(i6,x,i3,x,i3)') COUNT(sparse_mask), is, ie
-            CALL wrf_debug (wrfdbg, 'SPFire_driver pre-deposit send away: '//msg)
-            !-------------------------------------------------------------------------------
+            ! WRITE (msg,'(i6,x,i3,x,i3)') COUNT(sparse_mask), is, ie
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver pre-deposit send away: '//msg)
+            ! !-------------------------------------------------------------------------------
 
             CALL deposit_br(& !active_br= active_br, &
                            fs_p_id    = fs_p_id,      &
@@ -3002,18 +3002,18 @@ END FUNCTION order_val
             WRITE (msg,'(i12)') nresets
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br: '//msg)
 
-            !-------------------------------------------------------------------------------
-            sparse_mask = .FALSE. 
-            sparse_mask = (fs_p_id > 0 .AND. &
-                          (FLOOR(fs_p_x) < is .OR. & ! LEFT
-                           FLOOR(fs_p_x) > ie .OR. & ! RIGHT
-                           FLOOR(fs_p_y) > je .OR. & ! UP
-                           FLOOR(fs_p_y) < js ))     ! DONW
+            ! !-------------------------------------------------------------------------------
+            ! sparse_mask = .FALSE. 
+            ! sparse_mask = (fs_p_id > 0 .AND. &
+            !               (FLOOR(fs_p_x) < is .OR. & ! LEFT
+            !                FLOOR(fs_p_x) > ie .OR. & ! RIGHT
+            !                FLOOR(fs_p_y) > je .OR. & ! UP
+            !                FLOOR(fs_p_y) < js ))     ! DONW
                    
 
-            WRITE (msg,'(i6,x,i3,x,i3)') COUNT(sparse_mask), is, ie
-            CALL wrf_debug (wrfdbg, 'SPFire_driver post-deposit send away: '//msg)
-            !-------------------------------------------------------------------------------
+            ! WRITE (msg,'(i6,x,i3,x,i3)') COUNT(sparse_mask), is, ie
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver post-deposit send away: '//msg)
+            ! !-------------------------------------------------------------------------------
 
 
             ! The mask is based on floor(fs_p_x,y) so deposits should not exist at ie or je
@@ -3110,7 +3110,7 @@ END FUNCTION order_val
             active_br = COUNT( fs_p_id > 0 )
 
             WRITE (msg,'(1(i8,1x))') active_br
-            CALL wrf_debug (wrfdbg, 'SPFire_driver pack AFTER mpi_send2neighbors. active_br >>> '// msg)
+            CALL wrf_debug (wrfdbg, 'SPFire_driver packed AFTER mpi_send2neighbors. Active_br >>> '// msg)
 
 
             !===============================================================================            
