@@ -375,6 +375,7 @@ dimspec   fs_nfb      -  constant=1000                       c        fs_nfb
 # State 
 #<Table> <Type> <Sym>                 <Dims>       <Use>   <NumTLev> <Stagger> <IO> <DNAME>  <DESCRIP>     <UNITS>   
 #
+state integer  fs_tile_id                 ij       misc        1         -      h  "fs_tile_id"           "tile ID"
 state integer  fs_last_gen_dt            -         dyn_em      1         -      r  "fs_last_gen_dt"       "cycles since last firebrand generation" "count"
 state integer  fs_gen_idmax              -         dyn_em      1         -     rh  "fs_gen_idmax"         "highest ID number assigned to generated particle" "ID"
 state integer  fs_spot_idmax             -         dyn_em      1         -     rh  "fs_spot_idmax"        "highest ID number assigned to spotting particle" "ID"

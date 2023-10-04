@@ -2197,6 +2197,7 @@ if(config_flags%ifire.eq.2)then
            CALL firebrand_spotting_em_init ( &
                grid          = grid,                &
                cf            = config_flags,        &
+               tile_id       = grid%fs_tile_id,     &
                fs_p_id       = grid%fs_p_id,        &
                fs_p_src      = grid%fs_p_src,       &
                fs_p_dt       = grid%fs_p_dt,        &

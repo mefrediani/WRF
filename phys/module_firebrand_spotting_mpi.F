@@ -46,9 +46,9 @@ MODULE module_firebrand_spotting_mpi
         fs_mpi_sendbuff_int, &
         fs_mpi_sendbuffsize, &
         fs_mpi_sendbuff1_real, &
-        fs_mpi_sendbuff1_int, &
-        fs_mpi_tilesend2master, &
-        fs_mpi_masterrecvtiles
+        fs_mpi_sendbuff1_int
+        ! fs_mpi_tilesend2master, &
+        ! fs_mpi_masterrecvtiles
 #endif
 
     ! THESE VARIABLES ARE IN MODULE SCOPE ! Careful with reassignments - don't reassign
@@ -354,7 +354,7 @@ CONTAINS
                     CALL fs_mpi_sendbuff_int(sendto=sendto, bsz=nbr*nint, buff=p_int)
 
                     ! DO k=1,MIN(nbr,5)
-                    !     WRITE(msg,'(3(i6,1x),6(f12.6,1x))') sendto, p_int(k), p_int(k+nbr), p_real(k), p_real(k+nbr), p_real(k+2*nbr), p_real(k+4*nbr), p_real(k+6*nbr), p_real(k+7*nbr)
+                    !     WRITE(msg,'(3(i6,1x),6(f12.6,1x))') sendto, p_int(k), p_int(k+nbr), p_real(k), p_real(k+nbr), p_real(k+2*nbr), p_real(k+3*nbr), p_real(k+6*nbr), p_real(k+7*nbr)
                     !     CALL wrf_debug (wrfdbg, 'SPFire_mpi send  >>> '// msg)
                     ! ENDDO
 
@@ -371,110 +371,110 @@ CONTAINS
 !=============================================================
 
 
-!=============================================================
-    SUBROUTINE fs_mpi_tilesend2master(MasterId, nvectors, npts, thistilearray)
-!=============================================================
+! !=============================================================
+!     SUBROUTINE fs_mpi_tilesend2master(MasterId, nvectors, npts, thistilearray)
+! !=============================================================
 
-        IMPLICIT NONE
+!         IMPLICIT NONE
 
-        INTEGER, INTENT(IN) :: nvectors ! number of real type arrays packed together
-        INTEGER, INTENT(IN) :: npts     ! number of elements in each vector
-        INTEGER, INTENT(IN) :: MasterId
-        REAL,    INTENT(IN), DIMENSION(:,:) :: thistilearray 
+!         INTEGER, INTENT(IN) :: nvectors ! number of real type arrays packed together
+!         INTEGER, INTENT(IN) :: npts     ! number of elements in each vector
+!         INTEGER, INTENT(IN) :: MasterId
+!         REAL,    INTENT(IN), DIMENSION(:,:) :: thistilearray 
 
-        !-------------------------------------------------------------------------------
+!         !-------------------------------------------------------------------------------
 
-         CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=npts) ! Comm send >0: BuffSz
+!          CALL fs_mpi_sendbuffsize(sendto=MasterId, nbr=npts) ! Comm send >0: BuffSz
 
-         IF (npts > 0) THEN
+!          IF (npts > 0) THEN
 
-            ! WRITE (msg,'((i6,1x))') npts
-            ! CALL wrf_debug (wrfdbg, 'SPFire_mpi_tilesend2master npts:  '//msg)
+!             ! WRITE (msg,'((i6,1x))') npts
+!             ! CALL wrf_debug (wrfdbg, 'SPFire_mpi_tilesend2master npts:  '//msg)
 
-            CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=npts*nvectors, buff=thistilearray(1:nvectors, 1:npts))
+!             CALL fs_mpi_sendbuff_real(sendto=MasterId, bsz=npts*nvectors, buff=thistilearray(1:nvectors, 1:npts))
 
-         ELSE
-            CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
+!          ELSE
+!             CALL fs_mpi_nothing2send(sendto=MasterId) ! Comm send 0: BuffSz
 
-         ENDIF
+!          ENDIF
         
-!=============================================================
-    END SUBROUTINE fs_mpi_tilesend2master
-!=============================================================
+! !=============================================================
+!     END SUBROUTINE fs_mpi_tilesend2master
+! !=============================================================
 
 
 
-!=============================================================
-    SUBROUTINE fs_mpi_masterrecvtiles(nvectors, npts, thistilearray, dataarray)
-!=============================================================
+! !=============================================================
+!     SUBROUTINE fs_mpi_masterrecvtiles(nvectors, npts, thistilearray, dataarray)
+! !=============================================================
 
-        IMPLICIT NONE
+!         IMPLICIT NONE
 
-        INTEGER, INTENT(IN) :: nvectors ! number of real type arrays packed together
-        INTEGER, INTENT(IN) :: npts     ! number of elements in each vector
-        REAL,    INTENT(IN),    DIMENSION(:,:) :: thistilearray 
-        REAL,    INTENT(INOUT), DIMENSION(:,:) :: dataarray 
+!         INTEGER, INTENT(IN) :: nvectors ! number of real type arrays packed together
+!         INTEGER, INTENT(IN) :: npts     ! number of elements in each vector
+!         REAL,    INTENT(IN),    DIMENSION(:,:) :: thistilearray 
+!         REAL,    INTENT(INOUT), DIMENSION(:,:) :: dataarray 
 
-        INTEGER, ALLOCATABLE, DIMENSION(:)   :: np_npts
-        REAL,    ALLOCATABLE, DIMENSION(:,:) :: np_arrays
-        INTEGER :: pts_total, ii, kk, kk1, kk2, datasize
-        !-------------------------------------------------------------------------------
+!         INTEGER, ALLOCATABLE, DIMENSION(:)   :: np_npts
+!         REAL,    ALLOCATABLE, DIMENSION(:,:) :: np_arrays
+!         INTEGER :: pts_total, ii, kk, kk1, kk2, datasize
+!         !-------------------------------------------------------------------------------
 
-        dataarray(:,:) = ZERO_dp
-        ALLOCATE( np_npts(mpiprocs) )
-        np_npts(:) = 0
+!         dataarray(:,:) = ZERO_dp
+!         ALLOCATE( np_npts(mpiprocs) )
+!         np_npts(:) = 0
 
-         IF (npts > 0) THEN ! spots on Master
-            np_npts(1) = npts
-         ENDIF
+!          IF (npts > 0) THEN ! spots on Master
+!             np_npts(1) = npts
+!          ENDIF
 
-         DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
-            np_npts(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
+!          DO kk=2, mpiprocs ! kk=1 is Master, MPI-IDs begin at 0
+!             np_npts(kk) = fs_mpi_recvbuffsize(fromid=kk-1)  ! Comm receive: BuffSz
 
-            WRITE(msg, '(2(i8,1x))') kk, np_npts(kk)
-            CALL wrf_debug (wrfdbg, 'SPFire_mpi_spotprop proc deposit: '//msg)
-         ENDDO
+!             WRITE(msg, '(2(i8,1x))') kk, np_npts(kk)
+!             CALL wrf_debug (wrfdbg, 'SPFire_mpi_spotprop proc deposit: '//msg)
+!          ENDDO
 
-         pts_total = SUM(np_npts)
+!          pts_total = SUM(np_npts)
 
-         IF ( pts_total > 0) THEN 
-            ALLOCATE(np_arrays(nvectors, pts_total))
+!          IF ( pts_total > 0) THEN 
+!             ALLOCATE(np_arrays(nvectors, pts_total))
 
-            IF (npts > 0) THEN ! spots on Master
-               np_arrays(1:nvectors,1:npts) = thistilearray(1:nvectors, 1:npts)
-            ENDIF
+!             IF (npts > 0) THEN ! spots on Master
+!                np_arrays(1:nvectors,1:npts) = thistilearray(1:nvectors, 1:npts)
+!             ENDIF
 
-         !-------------------------------------------------------------------------------
-         ! Receive data from procs
+!          !-------------------------------------------------------------------------------
+!          ! Receive data from procs
 
-            kk1 = npts + 1 ! index start after master's 
-            DO kk=2, mpiprocs ! kk=1 is Master
+!             kk1 = npts + 1 ! index start after master's 
+!             DO kk=2, mpiprocs ! kk=1 is Master
 
-               IF (np_npts(kk) > 0) THEN 
+!                IF (np_npts(kk) > 0) THEN 
 
-                  kk2 = kk1 + np_npts(kk) -1                
+!                   kk2 = kk1 + np_npts(kk) -1                
 
-                  WRITE(msg, '(4(i8,1x))') kk, np_npts(kk), kk1, kk2
-                  CALL wrf_debug (wrfdbg, 'SPFire_mpi_spotprop master kk, np_nspots, k1:k2: '//msg)
+!                   WRITE(msg, '(4(i8,1x))') kk, np_npts(kk), kk1, kk2
+!                   CALL wrf_debug (wrfdbg, 'SPFire_mpi_spotprop master kk, np_nspots, k1:k2: '//msg)
 
-                  np_arrays(1:nvectors, kk1:kk2)=  RESHAPE( &
-                       fs_mpi_recvfrompatch_real(bsz=np_npts(kk)*nvectors, fromid=kk-1), &
-                                                           [nvectors, np_npts(kk)])
+!                   np_arrays(1:nvectors, kk1:kk2)=  RESHAPE( &
+!                        fs_mpi_recvfrompatch_real(bsz=np_npts(kk)*nvectors, fromid=kk-1), &
+!                                                            [nvectors, np_npts(kk)])
 
-                  kk1 = kk1 + np_npts(kk)
-               ENDIF
-            ENDDO
+!                   kk1 = kk1 + np_npts(kk)
+!                ENDIF
+!             ENDDO
 
-            datasize = MIN(SIZE(dataarray), pts_total)
-            dataarray(1:nvectors,1:datasize) = np_arrays(1:nvectors,1:datasize)
+!             datasize = MIN(SIZE(dataarray), pts_total)
+!             dataarray(1:nvectors,1:datasize) = np_arrays(1:nvectors,1:datasize)
 
-            DEALLOCATE(np_arrays, np_npts) 
+!             DEALLOCATE(np_arrays, np_npts) 
 
-         ENDIF ! ( spots_total > 0)
+!          ENDIF ! ( spots_total > 0)
         
-!=============================================================
-    END SUBROUTINE fs_mpi_masterrecvtiles
-!=============================================================
+! !=============================================================
+!     END SUBROUTINE fs_mpi_masterrecvtiles
+! !=============================================================
 
 
 
@@ -646,6 +646,10 @@ CONTAINS
             tmp2 = 0
             tmp2 = fs_mpi_recvbuffsize(fromid=task_list(ii))
             buffsz(ii) = tmp2
+            ! if (tmp2 > 0 ) then
+            !    WRITE (msg,'(i4,x,i6)') task_list(ii), tmp2 
+            !    CALL wrf_debug (wrfdbg, 'SPFire_mpi receive from, sz: '//msg)
+            ! endif
         ENDDO
 
     END FUNCTION fs_mpi_checkreceive
@@ -669,7 +673,7 @@ CONTAINS
         INTEGER, INTENT(OUT),DIMENSION(:) :: r_id, r_dt, r_src
         REAL,    INTENT(OUT),DIMENSION(:) :: r_p_m, r_p_d, r_p_e, r_p_t, r_p_v
 
-        INTEGER :: np_sum, istart, iend, ii
+        INTEGER :: np_sum, istart, iend, ii, k
         INTEGER, ALLOCATABLE, DIMENSION(:,:) :: arr_int
         REAL,    ALLOCATABLE, DIMENSION(:,:) :: arr_real
 
@@ -707,6 +711,12 @@ CONTAINS
                     fs_mpi_recvfrompatch_int(bsz=np_id(ii)*nint, fromid=task_id(ii)), &
                                                          [np_id(ii), nint])
 
+        !         DO k=1,MIN(np_id(ii),5)
+        !            WRITE(msg,'(3(i6,1x),6(f12.6,1x))') task_id(ii), arr_int(k,1), arr_int(k,2), arr_real(k,1), arr_real(k,2), arr_real(k,3), arr_real(k,4), arr_real(k,6), arr_real(k,7)
+        !            CALL wrf_debug (wrfdbg, 'SPFire_mpi recv  >>> '// msg)
+        ! ENDDO
+
+
                 istart = istart + np_id(ii)
 
             ENDIF
@@ -725,6 +735,7 @@ CONTAINS
         r_id = arr_int(:,1)
         r_src = arr_int(:,2)
         r_dt = arr_int(:,3)
+
 
     END SUBROUTINE fs_mpi_recv
 
