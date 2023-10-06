@@ -4884,7 +4884,7 @@ BENCH_END(bc_2d_tim)
                fs_count_landed_all   = grid%fs_count_landed_all,   &
                fs_count_landed_hist  = grid%fs_count_landed_hist,  &
                fs_count_landed_hist_fr = grid%fs_count_landed_hist_fr,&
-               fs_count_bournout_hist_fr = grid%fs_count_burnout_hist_fr,&
+               fs_count_burnout_hist_fr = grid%fs_count_burnout_hist_fr,&
                !fs_landing_mask       = grid%fs_landing_mask,       &
                fs_spotting_lkhd      = grid%fs_spotting_lkhd,      &
                fs_frac_landed        = grid%fs_frac_landed,        &

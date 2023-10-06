@@ -325,7 +325,7 @@ CONTAINS
         fs_fire_ROSdt(:,:) = 0.0_dp
         fs_max_travel_dist(:,:) = 0.0_dp
 
-        fs_active_inst_fr(:,:,:) = 0
+        fs_active_inst(:,:,:) = 0
 
         !-------------------------------------------------------------------------------
 
@@ -2647,8 +2647,8 @@ END FUNCTION order_val
                     fs_p_t = fs_p_temp, &
                     fs_p_v = fs_p_tvel, &
                     fs_p_dxy = fs_p_dxy, &
-                    fs_p_m1 = fs_ip_m, &
-                    fs_p_m2 = fs_ip_d)
+                    fs_ip_m = fs_ip_mass, &
+                    fs_ip_d = fs_ip_diam)
 
             CALL wrf_debug (wrfdbg, 'SPFire_driver MPI sent active firebrands')
 
