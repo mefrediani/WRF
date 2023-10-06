@@ -3968,7 +3968,7 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
     INTEGER :: k 
     
     !-------------------------------------------------------------------------------
-    sum_fbrand(:,:) = ZERO_dp    
+    sum_fbrand_fr(:,:) = ZERO_dp    
     sparse_mask = .FALSE. 
     !------------------------------------------------------------------------------- 
     ! Flag to remove brands beyond domain bounds
@@ -4017,8 +4017,8 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
 
         frx(:) = 0
         fry(:) = 0
-        frx(1:nresets) = frac_atm2fire_ij(PACK(fs_p_x, sparse_mask),sr)
-        fry(1:nresets) = frac_atm2fire_ij(PACK(fs_p_y, sparse_mask),sr)
+        frx(1:cnt) = FLOOR(PACK(fs_p_x, sparse_mask))
+        fry(1:cnt) = FLOOR(PACK(fs_p_y, sparse_mask))
 
         DO k=1,cnt
             sum_fbrand_fr(frx(k),fry(k)) = sum_fbrand_fr(frx(k),fry(k)) + 1.0_dp            
