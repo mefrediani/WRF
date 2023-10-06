@@ -1752,6 +1752,8 @@ END FUNCTION order_val
         REAL, DIMENSION(ifms:ifme, jfms:jfme) :: dt_sum_removed_fr ! sum timestep's deposited fb in 2-D memory array
 
         REAL, ALLOCATABLE, DIMENSION(:) :: fs_spotprop_m,fs_spotprop_m2, fs_spotprop_dxy, fs_spotprop_d,fs_spotprop_d2
+        REAL, ALLOCATABLE, DIMENSION(:) :: fs_spotprop_z, fs_spotprop_dt
+        INTEGER, ALLOCATABLE, DIMENSION(:) :: fs_spotprop_id
         !-------------------------------------------------------------------------------
         ! Likelihood
         !-------------------------------------------------------------------------------
@@ -2771,6 +2773,8 @@ END FUNCTION order_val
               fs_p_effd(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_effd
               fs_p_temp(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_temp
               fs_p_tvel(prior_br+1:active_br) = fs_p_prop(prior_br+1:active_br)%p_tvel
+              fs_p_dxy(prior_br+1:active_br) = r_p_dxy
+
               fs_ip_mass(prior_br+1:active_br)= r_ip_m
               fs_ip_diam(prior_br+1:active_br)= r_ip_d
 
@@ -2850,7 +2854,9 @@ END FUNCTION order_val
                            fs_p_mass  = fs_p_mass,   &
                            cnt        = nresets,     &
                            max_life_dt= firebrand_max_life_dt, &
-                           land_hgt   = firebrand_land_hgt)
+                           land_hgt   = firebrand_land_hgt, &
+                           sum_fbrand_fr=dt_sum_removed_fr)
+
             WRITE (msg,'(i12)') nresets
             CALL wrf_debug (wrfdbg, 'SPFire_driver remove br: '//msg)
 
@@ -2919,6 +2925,11 @@ END FUNCTION order_val
                ALLOCATE(fs_spotprop_m(nspots), fs_spotprop_m2(nspots), &
                         fs_spotprop_d(nspots), fs_spotprop_d2(nspots), &
                         fs_spotprop_dxy(nspots))
+
+               fs_spotprop_id  (1:nspots) = PACK(fs_p_id, deposit_mask)
+               fs_spotprop_z   (1:nspots) = PACK(fs_ip_z, deposit_mask)
+               fs_spotprop_dt  (1:nspots) = PACK(fs_p_dt, deposit_mask)
+
                fs_spotprop_m  (1:nspots) = PACK(fs_ip_mass, deposit_mask)
                fs_spotprop_m2 (1:nspots) = PACK(fs_p_mass , deposit_mask) 
                fs_spotprop_d  (1:nspots) = PACK(fs_ip_diam, deposit_mask)
@@ -2926,15 +2937,16 @@ END FUNCTION order_val
                fs_spotprop_dxy(1:nspots) = PACK(fs_p_dxy  , deposit_mask)
 
                DO kk=1,nspots
-                  WRITE (msg,'(1(i8,1x),5(f12.6,1x))') &
-                       kk, fs_spotprop_m(kk),fs_spotprop_m2(kk), &
+                  WRITE (msg,'(2(i8,1x),7(f12.6,1x))') &
+                       kk, fs_spotprop_id(kk), fs_spotprop_dt(kk), fs_spotprop_z(kk), &
+                       fs_spotprop_m(kk),fs_spotprop_m2(kk), &
                        fs_spotprop_d(kk),fs_spotprop_d2(kk), fs_spotprop_dxy(kk)
                   CALL wrf_debug (0, 'SPFire spotprop d1,d2,m1,m2,dxy: '//msg)
                ENDDO
             ENDIF
 
 
-            !===============================================================================            
+            !=============================================================================== 
             ! Repack Arrays
             !===============================================================================            
 
@@ -3936,11 +3948,14 @@ END FUNCTION u_2d_interp
 
 
 !=============================================================
-PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, cnt, max_life_dt, land_hgt)
+PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, &
+                           cnt, max_life_dt, land_hgt, sum_fbrand_fr)
 !=============================================================
     IMPLICIT NONE
     INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id
     INTEGER, INTENT(IN),    DIMENSION(:) :: fs_p_dt
+    REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: sum_fbrand_fr 
+
     !INTEGER, INTENT(IN) :: active_br
     REAL,    INTENT(IN), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z, fs_p_mass
     LOGICAL, DIMENSION(fs_array_maxsize) :: sparse_mask
@@ -3948,9 +3963,12 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
 
     INTEGER, INTENT(IN) :: max_life_dt
     REAL, INTENT(IN)    :: land_hgt
+
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: frx, fry
+    INTEGER :: k 
     
     !-------------------------------------------------------------------------------
-    
+    sum_fbrand(:,:) = ZERO_dp    
     sparse_mask = .FALSE. 
     !------------------------------------------------------------------------------- 
     ! Flag to remove brands beyond domain bounds
@@ -3992,6 +4010,21 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
     IF (cnt > 0) THEN
 
         WHERE(sparse_mask) fs_p_id = 0
+
+        !-------------------------------------------------------------------------------
+        ! Increment sum_fbrand
+        !-------------------------------------------------------------------------------
+
+        frx(:) = 0
+        fry(:) = 0
+        frx(1:nresets) = frac_atm2fire_ij(PACK(fs_p_x, sparse_mask),sr)
+        fry(1:nresets) = frac_atm2fire_ij(PACK(fs_p_y, sparse_mask),sr)
+
+        DO k=1,cnt
+            sum_fbrand_fr(frx(k),fry(k)) = sum_fbrand_fr(frx(k),fry(k)) + 1.0_dp            
+        ENDDO
+
+
 
         ! WRITE (msg,'(3(i8,1x))') COUNT(sparse_mask), COUNT( fs_p_id > 0 )
         ! CALL wrf_debug (wrfdbg, 'SPFire_remove removed, remaining: '//msg)
