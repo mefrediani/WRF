@@ -1333,27 +1333,42 @@ END FUNCTION order_val
                      loc_w   = loc_w,    & ! m/s
                      dt      = dt)
 
-!         WRITE (msg,'(4(f12.8,1x))') fbprop%p_mass, fbprop%p_diam, &
-!                                     fbprop%p_effd, fbprop%p_temp
-!         CALL wrf_debug (wrfdbg, 'SPFire br physics2 m, d, e, t: '//msg)
+        ! WRITE (msg,'(4(f12.8,1x))') fbprop%p_mass, fbprop%p_diam, &
+        !                             fbprop%p_effd, fbprop%p_temp
+        ! CALL wrf_debug (wrfdbg, 'SPFire physics2 m, d, e, t :  '//msg)
 
         !-------------------------------------------------------------------------------
         ! firebrand terminal velocity
         !-------------------------------------------------------------------------------
 
-        CALL termvel(p_diam  = fbprop%p_diam, &
-                     p_effd  = fbprop%p_effd,&
-                     p_temp  = fbprop%p_temp, &
-                     p_tvel  = fbprop%p_tvel, &
-                     aird    = loc_d,  & ! g/m3 
-                     pres    = loc_p,  & ! Pa
-                     temp    = loc_t,  & ! K
-                     dt      = dt,     & ! sec
-                     hgt     = hgt)      ! m
+        IF (IEEE_IS_NAN(fbprop%p_mass) .OR. &
+            IEEE_IS_NAN(fbprop%p_diam) .OR. &
+            IEEE_IS_NAN(fbprop%p_effd) .OR. &
+            IEEE_IS_NAN(fbprop%p_temp) .OR. &
+            IEEE_IS_NAN(fbprop%p_tvel)) THEN
 
+           IF(IEEE_IS_NAN(fbprop%p_mass)) fbprop%p_mass = ZERO_DP
+           IF(IEEE_IS_NAN(fbprop%p_diam)) fbprop%p_diam = ZERO_DP
+           IF(IEEE_IS_NAN(fbprop%p_effd)) fbprop%p_effd = ZERO_DP
+           IF(IEEE_IS_NAN(fbprop%p_temp)) fbprop%p_temp = ZERO_DP
+           IF(IEEE_IS_NAN(fbprop%p_tvel)) fbprop%p_tvel = ZERO_DP
+
+        ELSE
+
+           CALL termvel(p_diam  = fbprop%p_diam, &
+                        p_effd  = fbprop%p_effd,&
+                        p_temp  = fbprop%p_temp, &
+                        p_tvel  = fbprop%p_tvel, &
+                        aird    = loc_d,  & ! g/m3 
+                        pres    = loc_p,  & ! Pa
+                        temp    = loc_t,  & ! K
+                        dt      = dt,     & ! sec
+                        hgt     = hgt)      ! m
+
+        END IF
         ! WRITE (msg,'(6(f12.8,1x))') fbprop%p_mass, fbprop%p_diam, &
         !                             fbprop%p_effd, fbprop%p_temp, fbprop%p_tvel, hgt
-        ! CALL wrf_debug (wrfdbg, 'SPFire br physics2 m,d,e,t,v,h : '//msg)
+        ! CALL wrf_debug (wrfdbg, 'SPFire physics3 m,d,e,t,v,h : '//msg)
 
         ! **********
         ! NOTE:
@@ -2656,10 +2671,16 @@ END FUNCTION order_val
             !-------------------------------------------------------------------------------
             sparse_mask = .FALSE. 
 
-            WHERE (IEEE_IS_NAN(fs_p_mass) .OR. IEEE_IS_NAN(fs_p_diam) .OR. &
-                   IEEE_IS_NAN(fs_p_effd) .OR. IEEE_IS_NAN(fs_p_temp) .OR. &
-                   IEEE_IS_NAN(fs_p_tvel)) fs_p_effd = ZERO_dp ! ediam=zero will be removed in remove_br
+            sparse_mask = (IEEE_IS_NAN(fs_p_mass) .OR. &
+                           IEEE_IS_NAN(fs_p_diam) .OR. &
+                           IEEE_IS_NAN(fs_p_effd) .OR. &
+                           IEEE_IS_NAN(fs_p_temp) .OR. &
+                           IEEE_IS_NAN(fs_p_tvel)) 
 
+            WRITE (msg,'(i12)') COUNT(sparse_mask)
+            CALL wrf_debug (wrfdbg, 'SPFire_driver IEEE_NAN: '//msg)
+
+            ! WHERE(sparse_mask) fs_p_mass= ZERO_DP ! mass=zero will be removed in remove_br
 
             !===============================================================================
             ! Remove particles - from burnout or out of domain
@@ -2671,14 +2692,14 @@ END FUNCTION order_val
                            fs_p_y     = fs_p_y,      &
                            fs_p_z     = fs_p_z,      &
                            fs_p_dt    = fs_p_dt,     &
-                           fs_p_effd  = fs_p_effd,   &
+                           fs_p_mass  = fs_p_mass,   &
                            cnt        = nresets,     &
                            max_life_dt= firebrand_max_life_dt, &
                            land_hgt   = firebrand_land_hgt)
             WRITE (msg,'(i12)') nresets
             CALL wrf_debug (wrfdbg, 'SPFire_driver remove br: '//msg)
 
-            !===============================================================================            
+            !=============================================================================== 
             ! Spotfires: Deposited Embers: moved to after MPI
             !===============================================================================
 
@@ -3750,15 +3771,16 @@ END FUNCTION order_val
             loc_d = ZERO_dp
             loc_t = ZERO_dp
 
+            ! Particle deposited
             IF (zout(pp) <= ZERO_dp) THEN
-               !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
                 zout(pp) = ZERO_dp   
                 CYCLE ! Skip physics              
             ENDIF
 
+            ! When does this happen?
             IF (IEEE_IS_NAN(zout(pp)) .OR. ABS(zout(pp)) > HUGE(1.0)) THEN
                 !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
-                zout(pp) = ZERO_dp   
+                ! zout(pp) = ZERO_dp   
                 ! xout(pp) = ZERO_dp 
                 ! yout(pp) = ZERO_dp 
 
@@ -3807,15 +3829,15 @@ END FUNCTION order_val
                                      loc_d = loc_d,   &     
                                      fbprop  = fs_p_prop(pp))
 
+            ! Particle deposited
             IF (brz <= ZERO_dp) THEN
-                !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
                 brz = ZERO_dp   
             ENDIF
-            
+
+            ! This means particle burned out
             IF (IEEE_IS_NAN(fs_p_prop(pp)%p_tvel) .OR. ABS(fs_p_prop(pp)%p_tvel) > HUGE(1.0)) THEN
-                !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
-                zout(pp) = ZERO_dp
                 fs_p_prop(pp)%p_tvel = ZERO_dp
+                fs_p_prop(pp)%p_mass = ZERO_dp
 
                 ! WRITE (msg,'(3(i8,1x),4(f12.6,1x))') pp, idp(pp), dtp(pp), xout(pp), yout(pp), brz, fs_p_prop(pp)%p_tvel
                 ! CALL wrf_debug (wrfdbg, 'SPFire_physics AFTER:   pp,id,dt,xp,yp,zp,fbvt:    >>> '//msg)
@@ -4075,13 +4097,13 @@ END FUNCTION u_2d_interp
 
 
 !=============================================================
-PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_effd, cnt, max_life_dt, land_hgt)
+PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, cnt, max_life_dt, land_hgt)
 !=============================================================
     IMPLICIT NONE
     INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id
     INTEGER, INTENT(IN),    DIMENSION(:) :: fs_p_dt
     !INTEGER, INTENT(IN) :: active_br
-    REAL,    INTENT(IN), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z, fs_p_effd
+    REAL,    INTENT(IN), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z, fs_p_mass
     LOGICAL, DIMENSION(fs_array_maxsize) :: sparse_mask
     INTEGER, INTENT(OUT) :: cnt
 
@@ -4113,15 +4135,15 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_effd, 
     ! Flag to remove brands with near zero mass
     !-------------------------------------------------------------------------------
 
-    ! sparse_mask = (sparse_mask .OR. & 
-    !                (fs_p_id > 0 .AND. fs_p_mass <= br_min_mass))
+    sparse_mask = (sparse_mask .OR. & 
+                   (fs_p_id > 0 .AND. fs_p_mass <= ZERO_DP))
 
     !-------------------------------------------------------------------------------
     ! Flag to remove brands with near zero diameter that are not at deposit height
     !-------------------------------------------------------------------------------
 
-    sparse_mask = (sparse_mask .OR. & 
-                   (fs_p_id > 0 .AND. ((fs_p_effd <= TINY(1.0) .AND. (fs_p_z > land_hgt)))))
+    ! sparse_mask = (sparse_mask .OR. & 
+    !                (fs_p_id > 0 .AND. ((fs_p_effd <= TINY(1.0) .AND. (fs_p_z > land_hgt)))))
 
     !-------------------------------------------------------------------------------
     ! Reset array
