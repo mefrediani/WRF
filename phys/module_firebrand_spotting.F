@@ -1924,6 +1924,7 @@ END FUNCTION order_val
             fs_count_landed_hist_fr(:,:)  = ZERO_dp
             fs_fuel_spotting_risk(:,:) = ZERO_dp
             fs_gen_hist(ims:ime,jms:jme) = 0
+            fs_gen_inst_fr(ifms:ifme,jfms:jfme) = 0
             fs_count_reset      = .FALSE.
             !spotprop(:,:) = ZERO_dp
             ! gridspotprop(:,:) = ZERO_dp
@@ -1999,7 +2000,7 @@ END FUNCTION order_val
         IF (fs_last_gen_dt >= fs_gen_dt) THEN  
 
            !fs_gen_inst(ims:ime,jms:jme) = 0
-           fs_gen_inst_fr(ifms:ifme,jfms:jfme) = 0
+           !fs_gen_inst_fr(ifms:ifme,jfms:jfme) = 0
            fs_fire_ROSdt(ifms:ifme,jfms:jfme) = ZERO_dp
 
            DO ii=ifps, ifpe
@@ -2283,7 +2284,7 @@ END FUNCTION order_val
                 ! update relpts to represent value assigned to gridpts 
 
                 relpts = COUNT(n_rel_fr2d(ifps:ifpe,jfps:jfpe)>0) ! Limits to 1 release per refined gridpt, at various heights 
-                fs_gen_inst_fr(ifps:ifpe,jfps:jfpe) = n_rel_fr2d(ifps:ifpe,jfps:jfpe)
+                !fs_gen_inst_fr(ifps:ifpe,jfps:jfpe) = n_rel_fr2d(ifps:ifpe,jfps:jfpe)
 
                 WRITE(msg, '(1(i8,1x))') relpts
                 CALL wrf_debug (wrfdbg, 'SPFire_rel2fr relpts: '//msg)
@@ -2317,8 +2318,13 @@ END FUNCTION order_val
 
                 DO kk=1,relpts ! track release points between history outputs
 
-                    fs_gen_hist(INT(release_i(kk)),INT(release_j(kk))) = &
-                        fs_gen_hist(INT(release_i(kk)),INT(release_j(kk))) + 1
+                    fs_gen_hist(FLOOR(release_i(kk)),FLOOR(release_j(kk))) = &
+                        fs_gen_hist(FLOOR(release_i(kk)),FLOOR(release_j(kk))) + 1
+
+                    fs_gen_inst_fr(frac_atm2fire_ij(release_i(kk), grid%sr_x), &
+                                   frac_atm2fire_ij(release_j(kk), grid%sr_y)) = &
+                        fs_gen_inst_fr(frac_atm2fire_ij(release_i(kk), grid%sr_x), &
+                                       frac_atm2fire_ij(release_j(kk), grid%sr_y)) + 1
 
                     !fs_gen_inst(INT(release_i(kk)),INT(release_j(kk))) = 1
 
@@ -3745,16 +3751,16 @@ END FUNCTION order_val
             loc_t = ZERO_dp
 
             IF (zout(pp) <= ZERO_dp) THEN
-                fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
+               !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
                 zout(pp) = ZERO_dp   
                 CYCLE ! Skip physics              
             ENDIF
 
             IF (IEEE_IS_NAN(zout(pp)) .OR. ABS(zout(pp)) > HUGE(1.0)) THEN
-                fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
+                !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
                 zout(pp) = ZERO_dp   
-                xout(pp) = ZERO_dp 
-                yout(pp) = ZERO_dp 
+                ! xout(pp) = ZERO_dp 
+                ! yout(pp) = ZERO_dp 
 
                 CYCLE ! Skip physics              
             ENDIF
@@ -3802,13 +3808,14 @@ END FUNCTION order_val
                                      fbprop  = fs_p_prop(pp))
 
             IF (brz <= ZERO_dp) THEN
-                fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
+                !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
                 brz = ZERO_dp   
             ENDIF
             
             IF (IEEE_IS_NAN(fs_p_prop(pp)%p_tvel) .OR. ABS(fs_p_prop(pp)%p_tvel) > HUGE(1.0)) THEN
-                fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
+                !fs_p_prop(pp) = p_properties(ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP, ZERO_DP)
                 zout(pp) = ZERO_dp
+                fs_p_prop(pp)%p_tvel = ZERO_dp
 
                 ! WRITE (msg,'(3(i8,1x),4(f12.6,1x))') pp, idp(pp), dtp(pp), xout(pp), yout(pp), brz, fs_p_prop(pp)%p_tvel
                 ! CALL wrf_debug (wrfdbg, 'SPFire_physics AFTER:   pp,id,dt,xp,yp,zp,fbvt:    >>> '//msg)
