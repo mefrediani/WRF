@@ -2926,9 +2926,10 @@ END FUNCTION order_val
                         fs_spotprop_d(nspots), fs_spotprop_d2(nspots), &
                         fs_spotprop_dxy(nspots))
 
-               fs_spotprop_id  (1:nspots) = PACK(fs_p_id, deposit_mask)
-               fs_spotprop_z   (1:nspots) = PACK(fs_ip_z, deposit_mask)
-               fs_spotprop_dt  (1:nspots) = PACK(fs_p_dt, deposit_mask)
+               ! address not mapped in one of these:
+               ! fs_spotprop_id  (1:nspots) = PACK(fs_p_id, deposit_mask)
+               ! fs_spotprop_z   (1:nspots) = PACK(fs_ip_z, deposit_mask)
+               ! fs_spotprop_dt  (1:nspots) = PACK(fs_p_dt, deposit_mask)
 
                fs_spotprop_m  (1:nspots) = PACK(fs_ip_mass, deposit_mask)
                fs_spotprop_m2 (1:nspots) = PACK(fs_p_mass , deposit_mask) 
@@ -2937,8 +2938,8 @@ END FUNCTION order_val
                fs_spotprop_dxy(1:nspots) = PACK(fs_p_dxy  , deposit_mask)
 
                DO kk=1,nspots
-                  WRITE (msg,'(2(i8,1x),7(f12.6,1x))') &
-                       kk, fs_spotprop_id(kk), fs_spotprop_dt(kk), fs_spotprop_z(kk), &
+                  WRITE (msg,'(1(i8,1x),5(f12.6,1x))') &
+                       kk, &!fs_spotprop_id(kk), fs_spotprop_dt(kk), fs_spotprop_z(kk), &
                        fs_spotprop_m(kk),fs_spotprop_m2(kk), &
                        fs_spotprop_d(kk),fs_spotprop_d2(kk), fs_spotprop_dxy(kk)
                   CALL wrf_debug (0, 'SPFire spotprop d1,d2,m1,m2,dxy: '//msg)
