@@ -2855,7 +2855,8 @@ END FUNCTION order_val
                            cnt        = nresets,     &
                            max_life_dt= firebrand_max_life_dt, &
                            land_hgt   = firebrand_land_hgt, &
-                           sum_fbrand_fr=dt_sum_removed_fr)
+                           sum_fbrand_fr=dt_sum_removed_fr, &
+                           sr=grid%sr_x)
 
             WRITE (msg,'(i12)') nresets
             CALL wrf_debug (wrfdbg, 'SPFire_driver remove br: '//msg)
@@ -3950,7 +3951,7 @@ END FUNCTION u_2d_interp
 
 !=============================================================
 PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, &
-                           cnt, max_life_dt, land_hgt, sum_fbrand_fr)
+                           cnt, max_life_dt, land_hgt, sum_fbrand_fr, sr)
 !=============================================================
     IMPLICIT NONE
     INTEGER, INTENT(INOUT), DIMENSION(:) :: fs_p_id
@@ -3959,12 +3960,13 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
 
     !INTEGER, INTENT(IN) :: active_br
     REAL,    INTENT(IN), DIMENSION(:) :: fs_p_x, fs_p_y, fs_p_z, fs_p_mass
-    LOGICAL, DIMENSION(fs_array_maxsize) :: sparse_mask
     INTEGER, INTENT(OUT) :: cnt
 
     INTEGER, INTENT(IN) :: max_life_dt
     REAL, INTENT(IN)    :: land_hgt
+    INTEGER, INTENT(IN)    :: sr
 
+    LOGICAL, DIMENSION(fs_array_maxsize) :: sparse_mask
     INTEGER, ALLOCATABLE, DIMENSION(:) :: frx, fry
     INTEGER :: k 
     
@@ -4016,15 +4018,15 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
         ! Increment sum_fbrand
         !-------------------------------------------------------------------------------
 
-        ALLOCATE(frx(nresets),fry(nresets))
+        ALLOCATE(frx(cnt),fry(cnt))
 
         frx(:) = 0
         fry(:) = 0
-        frx(1:cnt) = FLOOR(PACK(fs_p_x, sparse_mask))
-        fry(1:cnt) = FLOOR(PACK(fs_p_y, sparse_mask))
+        frx(1:cnt) = frac_atm2fire_ij(PACK(fs_p_x, sparse_mask), sr)
+        fry(1:cnt) = frac_atm2fire_ij(PACK(fs_p_y, sparse_mask), sr)
 
         DO k=1,cnt
-            sum_fbrand_fr(frx(k),fry(k)) = sum_fbrand_fr(frx(k),fry(k)) + 1.0_dp            
+            sum_fbrand_fr(frx(k),fry(k)) = sum_fbrand_fr(frx(k),fry(k)) + 1.0_dp 
         ENDDO
 
 
