@@ -4016,6 +4016,8 @@ PURE SUBROUTINE remove_br( fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dt, fs_p_mass, 
         ! Increment sum_fbrand
         !-------------------------------------------------------------------------------
 
+        ALLOCATE(frx(nresets),fry(nresets))
+
         frx(:) = 0
         fry(:) = 0
         frx(1:cnt) = FLOOR(PACK(fs_p_x, sparse_mask))
