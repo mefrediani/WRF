@@ -2232,7 +2232,10 @@ if(config_flags%ifire.eq.2)then
                fs_frac_landed        = grid%fs_frac_landed,      &
                fs_fire_ROSdt         = grid%fs_fire_ROSdt,       &
                fs_count_reset        = grid%fs_count_reset,      &
-               fs_active_inst    = grid%fs_active_inst,    &
+               fs_active_inst       = grid%fs_active_inst,       &
+               fs_landed_adj        = grid%fs_landed_adj,        &
+               fs_spot_ign          = grid%fs_spot_ign,          &
+               ignite_flag          = grid%ignite_flag,          &
                fs_max_travel_dist   = grid%fs_max_travel_dist)
 
            

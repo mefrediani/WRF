@@ -375,6 +375,7 @@ dimspec   fs_nfb      -  constant=1000                       c        fs_nfb
 # State 
 #<Table> <Type> <Sym>                 <Dims>       <Use>   <NumTLev> <Stagger> <IO> <DNAME>  <DESCRIP>     <UNITS>   
 #
+state integer  ignite_flag	          ij       misc        1         -      h  "ignite_flag"	  "flag to ignite firespots"
 state integer  fs_tile_id                 ij       misc        1         -      h  "fs_tile_id"           "tile ID"
 state integer  fs_last_gen_dt            -         dyn_em      1         -      r  "fs_last_gen_dt"       "cycles since last firebrand generation" "count"
 state integer  fs_gen_idmax              -         dyn_em      1         -     rh  "fs_gen_idmax"         "highest ID number assigned to generated particle" "ID"
@@ -392,21 +393,13 @@ state  integer fs_gen_hist 	         ij        misc        1         -     rh  "
 state  real    fs_frac_landed            ij        misc        1         -     rh  "fs_frac_landed"       "fraction of firebrand landed (pt/total) during history interval"
 state  real    fs_spotting_lkhd          ij        misc        1         -      h  "fs_spotting_lkhd"     "fire spotting likelihood"
 state  integer fs_active_inst           i{k}j      misc        1         z      h  "fs_active_inst"	  "Active firebrands - instantaneous - on atm mesh"
+state  integer fs_landed_adj	         ij        misc        1         -      h  "fs_landed_adj"	  "firebrand sum of landed and adjecent neighbors"
+state  integer fs_spot_ign	         ij        misc        1         -      h  "fs_spot_ign"	  "spotting ignitions"
 state  real    fs_count_landed_hist_fr   *i*j      misc        1         -     rh  "fs_count_landed_hist_fr" "firebrand count: landed during history interval - on fire mesh"
 state  real    fs_count_burnout_hist_fr  *i*j      misc        1         -     rh  "fs_count_burnout_hist_fr" "firebrand count: burned out during history interval - on fire mesh"
 state  real    fs_max_travel_dist        *i*j      misc        1         -     rh  "fs_max_travel_dist"   "Max travel distance of landed embers"
-#state  integer fs_spotprop_id            {fs_nfb}   fire        1         -      r  "fs_spotprop_id"      "ID of spotting embers i.e. landed ahead of fire" "" 
-#state  integer fs_spotprop_dt            {fs_nfb}   fire        1         -      r  "fs_spotprop_dt"      "Dt of spotting embers i.e. landed ahead of fire" "" 
-#state  integer fs_spotprop_src           {fs_nfb}   fire        1         -      r  "fs_spotprop_src"     "tile source of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_x             {fs_nfb}   fire        1         -      r  "fs_spotprop_x"       "x property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_y             {fs_nfb}   fire        1         -      r  "fs_spotprop_y"       "y property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_z             {fs_nfb}   fire        1         -      r  "fs_spotprop_z"       "z property of spotting embers i.e. landed ahead of fire" "" 
 state  real    fs_spotprop_m             {fs_nfb}    fire        1         -      r  "fs_spotprop_m"       "mass property of spotting embers initial" "" 
 state  real    fs_spotprop_m2             {fs_nfb}   fire        1         -      r  "fs_spotprop_m2"       "mass property of spotting embers at landing" "" 
-#state  real    fs_spotprop_d             {fs_nfb}   fire        1         -      r  "fs_spotprop_d"       "diam property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_e             {fs_nfb}   fire        1         -      r  "fs_spotprop_e"       "effdiam property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_t             {fs_nfb}   fire        1         -      r  "fs_spotprop_t"       "temp property of spotting embers i.e. landed ahead of fire" "" 
-#state  real    fs_spotprop_v             {fs_nfb}   fire        1         -      r  "fs_spotprop_v"       "tvel property of spotting embers i.e. landed ahead of fire" "" 
 state  real    fs_spotprop_dxy           {fs_nfb}    fire        1         -      r  "fs_spotprop_dxy"     "distance of spotting embers i.e. landed ahead of fire" "" 
 ## 
 # ------------------------------------------------------------------------------------------------------------------------
