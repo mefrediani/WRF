@@ -194,6 +194,9 @@ CONTAINS
         fs_fire_ROSdt,   &
         fs_count_reset,&
         fs_active_inst,&
+        fs_landed_adj, &
+        fs_spot_ign,   &
+        ignite_flag,   &
         fs_max_travel_dist)
 
 !=============================================================
@@ -235,6 +238,7 @@ CONTAINS
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_hist_fr, fs_count_burnout_hist_fr
 
         INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst
+        INTEGER, INTENT(INOUT), DIMENSION(:,:) :: fs_landed_adj, fs_spot_ign, ignite_flag
 
         !-------------------------------------------------------------------------------
 
@@ -327,6 +331,9 @@ CONTAINS
         fs_max_travel_dist(:,:) = 0.0_dp
 
         fs_active_inst(:,:,:) = 0
+        fs_landed_adj(:,:)    = 0
+        fs_spot_ign(:,:)      = 0
+        ignite_flag(:,:)      = 0
 
         !-------------------------------------------------------------------------------
 
@@ -2898,12 +2905,13 @@ END FUNCTION order_val
                            fs_p_dxy   = fs_p_dxy,     &
                            sum_fbrand = dt_sum_landed,&
                            sum_fbrand_fr = dt_sum_landed_fr,&
-                           sum_valid = dt_sum_valid,&
+                           sum_valid = dt_sum_valid,   &
                            sum_valid_fr = dt_sum_valid_fr,&
                            land_hgt   = firebrand_land_hgt, &
-                           nresets    = nresets,     &                           
-                           sparse_mask= deposit_mask, &
-                           travel_dist= travel_dist,  &
+                           nresets    = nresets,       &                           
+                           sparse_mask= deposit_mask,  &
+                           travel_dist= travel_dist,   &
+                           fire_area  = grid%fire_area,&
                            sr=grid%sr_x)
 
             WRITE (msg,'(i12)') nresets
@@ -3043,7 +3051,7 @@ END FUNCTION order_val
                                                              fuel_fgi=grid%fgip(ii,jj), &
                                                              fuel_mcg=fmcg_2df(ii,jj), & 
                                                              !factor=spotthreat_fr(ii,jj))
-                                                             factor=1)
+                                                             factor=1.0)
 
                         ! When at least one valid deposit occurs, mask should be true (previously it was false)
                         landing_mask(fire2atm_ij(ii,grid%sr_x), fire2atm_ij(jj,grid%sr_y)) = .TRUE.
@@ -3054,6 +3062,7 @@ END FUNCTION order_val
 
                DO ii=is,ie
                   DO jj=js,je                  
+                     ! Need to communicate all memory values of dt_sum_valid among adjacent tiles 
                      fs_landed_adj(ii,jj) = SUM(dt_sum_valid(ii-1:ii+1, jj-1:jj+1))
                      IF (fs_landed_adj(ii,jj) > fs_ignthresh) THEN
                         ignite_flag(ii,jj) = 1
@@ -3062,6 +3071,7 @@ END FUNCTION order_val
                   ENDDO
                ENDDO
 
+            ENDIF ! IF (nspots > 0) THEN    
          ENDIF ! IF (active_br > 0) for deposit only
 
 
