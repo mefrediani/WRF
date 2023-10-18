@@ -1874,6 +1874,7 @@ END FUNCTION order_val
 
         fs_last_gen_dt = fs_last_gen_dt + 1
         active_br = COUNT( fs_p_id > 0 )
+        ROS_gen_thresh = cf%fs_ROSthresh
 
         ! IF (grid%itimestep == 1) &
         !     fs_fire_ROSdt(ifps:ifpe,jfps:jfpe) =0.0_dp
@@ -1891,15 +1892,18 @@ END FUNCTION order_val
             fs_gen_hist(ims:ime,jms:jme) = 0
             fs_gen_hist_fr(ifms:ifme,jfms:jfme) = 0
             fs_count_reset      = .FALSE.
-            
+            fs_spot_ign(ims:ime,jms:jme) = 0
         ENDIF
 
+        !===============================================================================
+        ! Reset arrays every timestep
+        !===============================================================================
+
         !fs_landing_mask(ims:ime,jms:jme) = 0
-        ROS_gen_thresh = cf%fs_ROSthresh
         firepts = 0
         landing_mask(ims:ime, jms:jme) = .FALSE.
         ignite_flag(ims:ime, jms:jme) = 0 
-
+        
         !===============================================================================
         ! Assign properties to derived type (used locally to shorten argument list)
         !===============================================================================
@@ -2672,12 +2676,9 @@ END FUNCTION order_val
             ENDIF
 #endif
             !-------------------------------------------------------------------------------
-            ! Reset
+            ! Resetting of sent away is now done prior to removal and deposit
+            ! setting id=0 here will cause incoming MPI to fail in generate_firebrands routine 
             !-------------------------------------------------------------------------------                
-            ! CALL wrf_debug (wrfdbg, 'SPFire_driver reset particles sent away')
-
-            ! In serial compilation, firebrands outside the domain limits will be removed
-            WHERE(sparse_mask) fs_p_id= 0
 
 
         ENDIF ! IF (active_br > 0) for transport
@@ -2842,6 +2843,15 @@ END FUNCTION order_val
         !******************************************************************
 
         IF (active_br > 0) THEN
+           
+           !===============================================================================
+           ! Reset IDs of particles sent to adjacent processors
+           !===============================================================================
+           
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver reset particles sent away')
+            ! In serial compilation, firebrands outside the domain limits will be removed
+            WHERE(sparse_mask) fs_p_id= 0
+
 
             !===============================================================================
             ! Remove particles - from burnout or out of domain
@@ -2927,6 +2937,11 @@ END FUNCTION order_val
                  INT(SUM(dt_sum_landed(is:ie, js:je))), &
                  INT(SUM(dt_sum_landed_fr(ifms:ifme, jfms:jfme)))
             CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br counts: '//msg)
+
+            WRITE (msg,'(3(i12,x))') COUNT(dt_sum_valid(is:ie, js:je) > 0), &
+                 INT(SUM(dt_sum_valid(is:ie, js:je))), &
+                 INT(SUM(dt_sum_valid_fr(ifms:ifme, jfms:jfme)))
+            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit valid counts: '//msg)
 
             DO ii=ifms,ifme
                DO jj=jfms,jfme                  
@@ -3041,7 +3056,7 @@ END FUNCTION order_val
 
                      CALL wrf_debug (wrfdbg, 'SPFire_driver starting spotting risk  ----------------------------------------- ') 
 
-                     IF ( dt_sum_landed_fr(ii,jj)  > 0 .AND. grid%fire_area(ii,jj) == 0) THEN
+                     IF ( dt_sum_valid_fr(ii,jj)  > 0 .AND. grid%fire_area(ii,jj) == 0) THEN
                         
                         ! fcat_fr(ii,jj) = get_fuel_cat(crosswalk=grid%fuel_crosswalk, &
                         !                               cat=grid%nfuel_cat(ii,jj)) 
@@ -3064,7 +3079,7 @@ END FUNCTION order_val
                   DO jj=js,je                  
                      ! Need to communicate all memory values of dt_sum_valid among adjacent tiles 
                      fs_landed_adj(ii,jj) = SUM(dt_sum_valid(ii-1:ii+1, jj-1:jj+1))
-                     IF (fs_landed_adj(ii,jj) > fs_ignthresh) THEN
+                     IF ((fs_ignthresh > 0) .AND. (fs_landed_adj(ii,jj) > fs_ignthresh)) THEN
                         ignite_flag(ii,jj) = 1
                         fs_spot_ign(ii,jj) = fs_spot_ign(ii,jj) + 1
                      ENDIF
