@@ -3046,14 +3046,13 @@ END FUNCTION order_val
 
             IF (nspots > 0) THEN
 
+               CALL wrf_debug (wrfdbg, 'SPFire_driver starting spotting risk  ----------------------------------------- ') 
                ALLOCATE(fuel_spotting_risk_fr(ifps:ifpe,jfps:jfpe))!, fcat_fr(ifps:ifpe,jfps:jfpe))
                fuel_spotting_risk_fr(:,:) = ZERO_dp
                !fcat_fr(:,:) = ZERO_dp 
                
                DO ii=ifps,ifpe
                   DO jj=jfps,jfpe                  
-
-                     CALL wrf_debug (wrfdbg, 'SPFire_driver starting spotting risk  ----------------------------------------- ') 
 
                      IF ( dt_sum_valid_fr(ii,jj)  > 0 .AND. grid%fire_area(ii,jj) == 0) THEN
                         
