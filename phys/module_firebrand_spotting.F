@@ -188,7 +188,7 @@ CONTAINS
         fs_count_landed_hist,   &
         fs_count_landed_hist_fr,&
         fs_count_burnout_hist_fr,&
-        !fs_landing_mask, &
+        fs_landing_mask, &
         fs_spotting_lkhd,&
         fs_frac_landed,  &
         fs_fire_ROSdt,   &
@@ -233,7 +233,7 @@ CONTAINS
         REAL,     INTENT(INOUT), DIMENSION(:)    :: fs_ip_temp, fs_ip_tvel
 
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_all, fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
-        !INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
+        INTEGER,  INTENT(INOUT), DIMENSION(:,:)  :: fs_landing_mask
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_fire_ROSdt, fs_max_travel_dist
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_hist_fr, fs_count_burnout_hist_fr
 
@@ -319,7 +319,7 @@ CONTAINS
         fs_ip_temp = 0.0_dp
         fs_ip_tvel = 0.0_dp
 
-        !fs_landing_mask(:,:) = 0
+        fs_landing_mask(:,:) = 0
         fs_count_landed_all (:,:) = 0.0_dp
         fs_count_landed_hist(:,:) = 0.0_dp
         fs_count_landed_hist_fr(:,:) = 0.0_dp
@@ -1639,7 +1639,7 @@ END FUNCTION order_val
         fs_count_landed_hist,  &
         fs_count_landed_hist_fr,&
         fs_count_burnout_hist_fr,&
-        !fs_landing_mask,       &
+        fs_landing_mask,       &
         fs_spotting_lkhd,       &
         fs_frac_landed,         &
         fs_fuel_spotting_risk,  &
@@ -1720,7 +1720,7 @@ END FUNCTION order_val
 
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area, fs_fuel_spotting_risk    ! Use memory bounds so positons match indices
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_hist, fs_spotting_lkhd, fs_frac_landed
-        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_gen_hist, fs_landed_adj, fs_spot_ign, ignite_flag
+        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_gen_hist, fs_landed_adj, fs_spot_ign, ignite_flag
 
         ! fire memory bounds, not fire tile bounds
         REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt, fs_max_travel_dist
@@ -1728,7 +1728,7 @@ END FUNCTION order_val
         INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_gen_hist_fr
         INTEGER, INTENT(INOUT), DIMENSION(ims:ime,ks:ke,jms:jme) :: fs_active_inst
 
-        LOGICAL, DIMENSION(ims:ime,jms:jme) :: landing_mask
+        !LOGICAL, DIMENSION(ims:ime,jms:jme) :: landing_mask
 
         !-------------------------------------------------------------------------------
         ! Parameters
@@ -1773,7 +1773,6 @@ END FUNCTION order_val
         REAL,    ALLOCATABLE, DIMENSION(:,:) :: fuel_spotting_risk_fr, spotthreat_fr ! only need it for history intervals
 
         ! only need it in hist interval - do not hold memory
-        !LOGICAL, ALLOCATABLE, DIMENSION(:,:) :: landing_mask
         INTEGER, ALLOCATABLE, DIMENSION(:)   :: landing_cnt
         INTEGER, ALLOCATABLE, DIMENSION(:)   :: np_landed_cnt, np_nlanded  ! (MPI: only Master allocates these)
         REAL,    ALLOCATABLE, DIMENSION(:)   :: np_landed_risk, np_frac_landed, np_lkhd ! (MPI: only Master allocates these)
@@ -1899,9 +1898,9 @@ END FUNCTION order_val
         ! Reset arrays every timestep
         !===============================================================================
 
-        !fs_landing_mask(ims:ime,jms:jme) = 0
+        fs_landing_mask(ims:ime,jms:jme) = 0
         firepts = 0
-        landing_mask(ims:ime, jms:jme) = .FALSE.
+        !landing_mask(ims:ime, jms:jme) = .FALSE.
         ignite_flag(ims:ime, jms:jme) = 0 
         
         !===============================================================================
@@ -3069,7 +3068,7 @@ END FUNCTION order_val
                                                              factor=1.0)
 
                         ! When at least one valid deposit occurs, mask should be true (previously it was false)
-                        landing_mask(fire2atm_ij(ii,grid%sr_x), fire2atm_ij(jj,grid%sr_y)) = .TRUE.
+                        fs_landing_mask(fire2atm_ij(ii,grid%sr_x), fire2atm_ij(jj,grid%sr_y)) = 1
 
                      ENDIF
                   ENDDO
