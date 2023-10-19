@@ -1950,7 +1950,7 @@ END FUNCTION order_val
         !-------------------------------------------------------------------------------
         ! When a new release is due, calculate fraction of release by fuel category
         !-------------------------------------------------------------------------------
-        IF (fs_last_gen_dt < fs_gen_dt) CALL wrf_debug (wrfdbg, 'SPFire will not release')
+        !IF (fs_last_gen_dt < fs_gen_dt) CALL wrf_debug (wrfdbg, 'SPFire will not release')
 
         IF (fs_last_gen_dt >= fs_gen_dt) THEN  
 
@@ -2405,7 +2405,7 @@ END FUNCTION order_val
               CALL fs_mpi_nothing2send(sendto=upright_id)
               CALL fs_mpi_nothing2send(sendto=downleft_id)
               CALL fs_mpi_nothing2send(sendto=downright_id)
-              CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
+              !CALL wrf_debug (wrfdbg, 'SPFire_driver: no fires or active brands in patch. MPI signal sent.')
 
            ENDIF
         ENDIF
@@ -2418,7 +2418,7 @@ END FUNCTION order_val
         !===============================================================================
         ! Transport active firebrands
         !===============================================================================
-        IF (active_br == 0) CALL wrf_debug (wrfdbg, 'SPFire nothing to transport')
+        !IF (active_br == 0) CALL wrf_debug (wrfdbg, 'SPFire nothing to transport')
 
         IF (active_br > 0) THEN 
 
@@ -2642,7 +2642,7 @@ END FUNCTION order_val
                    
 
             WRITE (msg,'(i6)') COUNT(sparse_mask) 
-            CALL wrf_debug (wrfdbg, 'SPFire_driver MPI send away: '//msg)
+            IF (COUNT(sparse_mask) > 0 ) CALL wrf_debug (wrfdbg, 'SPFire_driver MPI send away: '//msg)
 
             !-------------------------------------------------------------------------------
             ! interrupt before MPI
@@ -2710,7 +2710,7 @@ END FUNCTION order_val
            nbr_id(:)=0
            nbr_id(:)=fs_mpi_checkreceive(task_list=task_id, np=neighbors)
 
-           CALL wrf_debug (wrfdbg, 'SPFire_driver: MPI signal checked.')
+           !CALL wrf_debug (wrfdbg, 'SPFire_driver: MPI signal checked.')
 
            nbr_sum = SUM(nbr_id)
            IF (nbr_sum > 0) THEN 
@@ -3077,7 +3077,7 @@ END FUNCTION order_val
                DO ii=is,ie
                   DO jj=js,je                  
                      ! Need to communicate all memory values of dt_sum_valid among adjacent tiles 
-                     fs_landed_adj(ii,jj) = SUM(dt_sum_valid(ii-1:ii+1, jj-1:jj+1))
+                     fs_landed_adj(ii,jj) = COUNT( dt_sum_valid(ii-1:ii+1, jj-1:jj+1) > 0 )
                      IF ((fs_ignthresh > 0) .AND. (fs_landed_adj(ii,jj) > fs_ignthresh)) THEN
                         ignite_flag(ii,jj) = 1
                         fs_spot_ign(ii,jj) = fs_spot_ign(ii,jj) + 1
@@ -3317,7 +3317,7 @@ END FUNCTION order_val
         hist_flag = .FALSE. 
 
             
-        CALL wrf_debug (wrfdbg, 'SPFire_driver End of module ----------------------------------------- ') 
+        !CALL wrf_debug (wrfdbg, 'SPFire_driver End of module ----------------------------------------- ') 
 
     END SUBROUTINE firebrand_spotting_em_driver
 !=============================================================
