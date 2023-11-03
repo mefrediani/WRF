@@ -1589,8 +1589,8 @@ threshold_HLu=fire_lsm_band_ngp*dx
     itso,iteo,jtso,jteo, &                             ! where set now
     lfn_s3) 
 
-    
-dt_s=0.01*dx
+!decreased time steps 
+dt_s=0.0001*dx
 do nts=1,fire_lsm_reinit_iter ! iterate to solve to steady state (1 iter each time step is enoguh)
     ! Runge-Kutta step 1 !
     

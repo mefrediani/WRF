@@ -787,17 +787,6 @@ do ij=1,num_tiles
             xlong,                                       & ! atm grid arrays in
             fxlong,0)                                      ! fire grid arrays out
 
-        call interpolate_z2fire(id,                       & 
-            ids,ide,  jds,jde,                            &
-            ims,ime,  jms,jme,                            &
-            ips,ipe,jps,jpe,                              &
-            its,ite,jts,jte,                              &
-            ifds, ifde, jfds, jfde,                       &
-            ifms, ifme, jfms, jfme,                       &
-            ifts,ifte,jfts,jfte,                          &
-            ir,jr,                                        &
-            z0,                                           &
-            fz0,1)
 
         endif
 
@@ -818,6 +807,19 @@ do ij=1,num_tiles
         call write_array_m3(its,ite,kts,kde-1,jts,jte1,ims,ime,kms,kme,jms,jme,v,'v_2',id)
         call write_array_m3(its,ite,kts,kde,jts,jte,ims,ime,kms,kme,jms,jme,ph,'ph_2',id)
         call write_array_m3(its,ite,kts,kde,jts,jte,ims,ime,kms,kme,jms,jme,phb,'phb',id)
+
+        call interpolate_z2fire(id,                       & 
+            ids,ide,  jds,jde,                            &
+            ims,ime,  jms,jme,                            &
+            ips,ipe,jps,jpe,                              &
+            its,ite,jts,jte,                              &
+            ifds, ifde, jfds, jfde,                       &
+            ifms, ifme, jfms, jfme,                       &
+            ifts,ifte,jfts,jfte,                          &
+            ir,jr,                                        &
+            z0,                                           &
+            fz0,1)
+
         call interpolate_atm2fire(id,                     & ! flag for debug output
             fire_wind_height,                             & ! height to interpolate to
             ids,ide, kds,kde, jds,jde,                    & ! atm grid dimensions
