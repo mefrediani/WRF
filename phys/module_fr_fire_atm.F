@@ -76,7 +76,7 @@ SUBROUTINE fire_tendency( &
     grnhfx,grnqfx,canhfx,canqfx, & ! heat fluxes summed up to  atm grid
     alfg,alfc,z1can,             & ! coeffients, properties, geometry
     zs,z_at_w,dz8w,mu,c1h,c2h,rho, &
-    rthfrten,rqvfrten)             ! theta and Qv tendencies
+    rthfrten,rqvfrten,fire_atm_feedback_opt)             ! theta and Qv tendencies
 
 ! This routine is atmospheric physics
 ! it does NOT go into module_fr_fire_phys because it is not related to fire physical processes
@@ -106,6 +106,7 @@ SUBROUTINE fire_tendency( &
    REAL, INTENT(in) :: alfg ! extinction depth surface fire heat (m)
    REAL, INTENT(in) :: alfc ! extinction depth crown  fire heat (m)
    REAL, INTENT(in) :: z1can    ! height of crown fire heat release (m)
+   INTEGER, INTENT(in) :: fire_atm_feedback_opt
 
 ! --- outgoing variables
 
@@ -162,7 +163,7 @@ SUBROUTINE fire_tendency( &
    j_en = MIN(jte,jde-1)
 
 ! --- distribute fluxes
-
+   if (fire_atm_feedback_opt == 2) then
    DO j = j_st,j_en
       DO k = k_st,k_en
          DO i = i_st,i_en
@@ -205,23 +206,47 @@ SUBROUTINE fire_tendency( &
       END DO
    END DO
 
+   elseif (fire_atm_feedback_opt == 1) then
+
+     DO j = j_st,j_en
+       DO i = i_st,i_en
+              ! --- set z (in meters above ground)
+  
+              ! --- heat flux
+         hfx(i,k_st,j) = cp_i * (grnhfx(i,j) + canhfx(i,j))
+  
+              ! --- vapor flux
+         qfx(i,k_st,j) = xlv_i * (grnqfx(i,j) + canqfx(i,j))
+              
+       END DO
+     END DO
+   
+   endif
+
 ! --- add flux divergence to tendencies
 !
 !   multiply by dry air mass (mu) to eliminate the need to
 !   call sr. calculate_phy_tend (in dyn_em/module_em.F)
 
+   if (fire_atm_feedback_opt == 2) then
    DO j = j_st,j_en
       DO k = k_st,k_en-1
          DO i = i_st,i_en
-
             rho_i = 1./rho(i,k,j)
-
             rthfrten(i,k,j) = - (c1h(k)*mu(i,j)+c2h(k)) * rho_i * (hfx(i,k+1,j)-hfx(i,k,j)) / dz8w(i,k,j)
             rqvfrten(i,k,j) = - (c1h(k)*mu(i,j)+c2h(k)) * rho_i * (qfx(i,k+1,j)-qfx(i,k,j)) / dz8w(i,k,j)
-
          END DO
       END DO
    END DO
+   elseif (fire_atm_feedback_opt == 1) then
+     DO j = j_st,j_en
+       DO i = i_st,i_en
+         rho_i = 1./rho(i,k_st,j)  
+         rthfrten(i,k_st,j) = (c1h(k_st)*mu(i,j)+c2h(k_st)) * rho_i * hfx(i,k_st,j) / dz8w(i,k_st,j)
+         rqvfrten(i,k_st,j) = (c1h(k_st)*mu(i,j)+c2h(k_st)) * rho_i * qfx(i,k_st,j) / dz8w(i,k_st,j)
+       END DO
+     END DO
+   endif
 
    call print_3d_stats(its,ite,kts,kte,jts,jte,ims,ime,kms,kme,jms,jme,rthfrten,'fire_tendency:rthfrten')
    call print_3d_stats(its,ite,kts,kte,jts,jte,ims,ime,kms,kme,jms,jme,rqvfrten,'fire_tendency:rqvfrten')

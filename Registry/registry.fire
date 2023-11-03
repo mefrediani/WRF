@@ -257,6 +257,7 @@ rconfig   real    fire_const_time        namelist,fire         max_domains      
 rconfig   real    fire_const_grnhfx      namelist,fire         max_domains           0.      -      "fire_const_grnhfx"   "if both >=0, the amount of constant heat flux" "1"
 rconfig   real    fire_const_grnqfx      namelist,fire         max_domains           0.      -      "fire_const_grnqfx"   "if both >=0, the amount of constant heat flux" "1"
 rconfig   real    fire_atm_feedback      namelist,fire         max_domains           1.      -      "fire_atm_feedback"   "the heat fluxes to the atmosphere are multiplied by this" "1"
+rconfig   integer fire_atm_feedback_opt  namelist,fire         max_domains           2       -      "fire_atm_feedback"   "the heat fluxes to the atmosphere are multiplied by this" "1"
 rconfig   integer fire_mountain_type     namelist,fire         max_domains            0      -      "fire_mountain_type" "in ideal: 0=none, 1=COS hill, 2=EW ridge, 3=NS ridge" "1"
 rconfig   real    fire_mountain_height   namelist,fire         max_domains         500.      -      "fire_mountain_height" "ideal mountain height" "m"
 rconfig   real    fire_mountain_start_x  namelist,fire         max_domains         100.      -      "fire_mountain_start_x" "x coord of start of the mountain" "m"
