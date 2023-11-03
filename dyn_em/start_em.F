@@ -2225,12 +2225,12 @@ if(config_flags%ifire.eq.2)then
                fs_gen_idmax  = grid%fs_gen_idmax,   &
                fs_spot_idmax  = grid%fs_spot_idmax, &
                fs_count_landed_all   = grid%fs_count_landed_all, &
-               fs_count_landed_hist  = grid%fs_count_landed_hist,&
+!               fs_count_landed_hist  = grid%fs_count_landed_hist,&
                fs_count_landed_hist_fr= grid%fs_count_landed_hist_fr,&
                fs_count_burnout_hist_fr= grid%fs_count_burnout_hist_fr,&
                fs_landing_mask       =grid%fs_landing_mask,      &
-               fs_spotting_lkhd      = grid%fs_spotting_lkhd,    &
-               fs_frac_landed        = grid%fs_frac_landed,      &
+!               fs_spotting_lkhd      = grid%fs_spotting_lkhd,    &
+!               fs_frac_landed        = grid%fs_frac_landed,      &
                fs_fire_ROSdt         = grid%fs_fire_ROSdt,       &
                fs_count_reset        = grid%fs_count_reset,      &
                fs_active_inst       = grid%fs_active_inst,       &
