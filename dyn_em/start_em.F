@@ -2225,19 +2225,19 @@ if(config_flags%ifire.eq.2)then
                fs_gen_idmax  = grid%fs_gen_idmax,   &
                fs_spot_idmax  = grid%fs_spot_idmax, &
                fs_count_landed_all   = grid%fs_count_landed_all, &
-!               fs_count_landed_hist  = grid%fs_count_landed_hist,&
                fs_count_landed_hist_fr= grid%fs_count_landed_hist_fr,&
                fs_count_burnout_hist_fr= grid%fs_count_burnout_hist_fr,&
                fs_landing_mask       =grid%fs_landing_mask,      &
-!               fs_spotting_lkhd      = grid%fs_spotting_lkhd,    &
-!               fs_frac_landed        = grid%fs_frac_landed,      &
                fs_fire_ROSdt         = grid%fs_fire_ROSdt,       &
                fs_count_reset        = grid%fs_count_reset,      &
                fs_active_inst       = grid%fs_active_inst,       &
-               fs_landed_adj        = grid%fs_landed_adj,        &
+               fs_landed_adj_points = grid%fs_landed_adj_points, &
+               fs_landed_adj_count  = grid%fs_landed_adj_count,  &
                fs_spot_ign          = grid%fs_spot_ign,          &
                ignite_flag          = grid%ignite_flag,          &
+               sum_fuel_valid       = grid%sum_fuel_valid,       &
                fs_max_travel_dist   = grid%fs_max_travel_dist)
+
 
            
            CALL wrf_debug ( 100 , 'start_em: firebrand_spotting_em_init ok ' )

@@ -4856,8 +4856,6 @@ BENCH_END(bc_2d_tim)
                fs_p_x        = grid%fs_p_x,         &
                fs_p_y        = grid%fs_p_y,         &
                fs_p_z        = grid%fs_p_z,         &
-!               fs_gen_hist   = grid%fs_gen_hist,    &
-               !fs_gen_inst   = grid%fs_gen_inst,    &
                fs_gen_hist_fr= grid%fs_gen_hist_fr, &
                fs_p_mass     = grid%fs_p_mass,      &  
                fs_p_diam     = grid%fs_p_diam,      & 
@@ -4882,18 +4880,16 @@ BENCH_END(bc_2d_tim)
                fs_fire_ROSdt = grid%fs_fire_ROSdt,  &
                fs_fire_area  = grid%fs_fire_area,   &
                fs_count_landed_all   = grid%fs_count_landed_all,   &
-!               fs_count_landed_hist  = grid%fs_count_landed_hist,  &
                fs_count_landed_hist_fr = grid%fs_count_landed_hist_fr,&
                fs_count_burnout_hist_fr = grid%fs_count_burnout_hist_fr,&
                fs_landing_mask       = grid%fs_landing_mask,       &
-!               fs_spotting_lkhd      = grid%fs_spotting_lkhd,      &
-!               fs_frac_landed        = grid%fs_frac_landed,        &
-!               fs_fuel_spotting_risk = grid%fs_fuel_spotting_risk, &
                fs_count_reset        = grid%fs_count_reset,        &
                fs_active_inst       = grid%fs_active_inst,         &
-               fs_landed_adj        = grid%fs_landed_adj,          &
+               fs_landed_adj_points = grid%fs_landed_adj_points,   &
+               fs_landed_adj_count  = grid%fs_landed_adj_count,    &
                fs_spot_ign          = grid%fs_spot_ign,            &
                ignite_flag          = grid%ignite_flag,            &
+               sum_fuel_valid       = grid%sum_fuel_valid,            &
                fs_max_travel_dist   = grid%fs_max_travel_dist)
        CALL wrf_debug (0 , 'solve: done with firebrand_spotting_em_driver.' )
 

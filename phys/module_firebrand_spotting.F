@@ -194,9 +194,11 @@ CONTAINS
         fs_fire_ROSdt,   &
         fs_count_reset,&
         fs_active_inst,&
-        fs_landed_adj, &
+        fs_landed_adj_points, &
+        fs_landed_adj_count,  &
         fs_spot_ign,   &
         ignite_flag,   &
+        sum_fuel_valid, &
         fs_max_travel_dist)
 
 !=============================================================
@@ -238,7 +240,7 @@ CONTAINS
         REAL,     INTENT(INOUT), DIMENSION(:,:)  :: fs_count_landed_hist_fr, fs_count_burnout_hist_fr
 
         INTEGER,  INTENT(INOUT), DIMENSION(:,:,:)  :: fs_active_inst
-        INTEGER, INTENT(INOUT), DIMENSION(:,:) :: fs_landed_adj, fs_spot_ign, ignite_flag
+        INTEGER, INTENT(INOUT), DIMENSION(:,:) :: fs_landed_adj_points,fs_landed_adj_count, fs_spot_ign, ignite_flag, sum_fuel_valid
 
         !-------------------------------------------------------------------------------
 
@@ -328,9 +330,11 @@ CONTAINS
         fs_max_travel_dist(:,:) = 0.0_dp
 
         fs_active_inst(:,:,:) = 0
-        fs_landed_adj(:,:)    = 0
+        fs_landed_adj_points(:,:) = 0
+        fs_landed_adj_count(:,:)  = 0
         fs_spot_ign(:,:)      = 0
         ignite_flag(:,:)      = 0
+        sum_fuel_valid(:,:)   = 0
 
         !-------------------------------------------------------------------------------
 
@@ -1642,9 +1646,11 @@ END FUNCTION order_val
 !        fs_fuel_spotting_risk,  &
         fs_count_reset,         &
         fs_active_inst,         &
-        fs_landed_adj,          &
+        fs_landed_adj_points,   &
+        fs_landed_adj_count,    &
         fs_spot_ign,            &
         ignite_flag,            &
+        sum_fuel_valid,         &
         fs_max_travel_dist)
 
 
@@ -1716,13 +1722,13 @@ END FUNCTION order_val
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_ip_temp, fs_ip_tvel
 
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area ! Use memory bounds so positons match indices
-        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_landed_adj
+        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_landed_adj_points,fs_landed_adj_count
 
         ! fire memory bounds, not fire tile bounds
         REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt, fs_max_travel_dist
         REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_count_landed_hist_fr, fs_count_burnout_hist_fr
         INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_gen_hist_fr
-        INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) ::fs_spot_ign, ignite_flag
+        INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) ::fs_spot_ign, ignite_flag, sum_fuel_valid
 
         INTEGER, INTENT(INOUT), DIMENSION(ims:ime,ks:ke,jms:jme) :: fs_active_inst
 
@@ -1759,7 +1765,7 @@ END FUNCTION order_val
 
         REAL, DIMENSION(ims:ime, jms:jme) :: dt_sum_landed, dt_sum_valid ! sum timestep's deposited fb in 2-D memory array
         REAL, DIMENSION(ifms:ifme, jfms:jfme) :: dt_sum_landed_fr, dt_sum_valid_fr, dt_sum_removed_fr ! sum timestep's deposited fb in 2-D memory array
-        INTEGER, DIMENSION(ifms:ifme, jfms:jfme) :: fuel_valid, sum_fuel_valid
+        INTEGER, DIMENSION(ifms:ifme, jfms:jfme) :: fuel_valid
 
         REAL, ALLOCATABLE, DIMENSION(:) :: fs_spotprop_m,fs_spotprop_m2, fs_spotprop_dxy, fs_spotprop_d,fs_spotprop_d2
         REAL, ALLOCATABLE, DIMENSION(:) :: fs_spotprop_z, fs_spotprop_dt
@@ -1880,8 +1886,8 @@ END FUNCTION order_val
         IF (fs_count_reset) THEN ! if true
             !CALL wrf_debug (wrfdbg, 'SPFire_lkhd: resetting fs_count_reset!')
 !            fs_count_landed_hist(:,:)    = ZERO_dp
-            fs_count_landed_hist_fr(:,:) = ZERO_dp
-            fs_count_burnout_hist_fr(:,:)= ZERO_dp
+            fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) = ZERO_dp
+            fs_count_burnout_hist_fr(ifms:ifme, jfms:jfme)= ZERO_dp
 !            fs_fuel_spotting_risk(:,:)   = ZERO_dp
 !            fs_gen_hist(ims:ime,jms:jme) = 0
             fs_gen_hist_fr(ifms:ifme,jfms:jfme) = 0
@@ -1892,16 +1898,19 @@ END FUNCTION order_val
         !===============================================================================
         ! Reset arrays every timestep
         !===============================================================================
-
-        fs_landing_mask(ims:ime,jms:jme) = 0
         firepts = 0
-        !landing_mask(ims:ime, jms:jme) = .FALSE.
+        fs_landing_mask(ims:ime,jms:jme) = 0
+        fs_fire_area(ims:ime , jms:jme) = ZERO_dp
+        dt_sum_landed(ims:ime, jms:jme) = ZERO_dp
+        dt_sum_valid(ims:ime , jms:jme) = ZERO_dp
+        fs_landed_adj_points(ims:ime, jms:jme) = ZERO_dp
+        fs_landed_adj_count(ims:ime, jms:jme)  = ZERO_dp
+
         ignite_flag(ifms:ifme, jfms:jfme) = 0 
-        fs_fire_area(ims:ime, jms:jme) = ZERO_dp
-        dt_sum_landed(ims:, jms:) = ZERO_dp
-        dt_sum_landed_fr(ifms:ifme, jfms:jfme) = ZERO_dp
-        dt_sum_valid(ims:, jms:) = ZERO_dp
-        dt_sum_valid_fr(ifms:ifme, jfms:jfme) = ZERO_dp
+        dt_sum_landed_fr(  ifms:ifme, jfms:jfme) = ZERO_dp
+        dt_sum_valid_fr(   ifms:ifme, jfms:jfme) = ZERO_dp
+        fs_max_travel_dist(ifms:ifme, jfms:jfme) = ZERO_dp
+        sum_fuel_valid(    ifms:ifme, jfms:jfme) = ZERO_dp
 
         !===============================================================================
         ! Assign properties to derived type (used locally to shorten argument list)
@@ -2911,9 +2920,9 @@ END FUNCTION order_val
                            fs_p_y     = fs_p_y,       &
                            fs_p_z     = fs_p_z,       &
                            fs_p_dxy   = fs_p_dxy,     &
-                           sum_fbrand = dt_sum_landed,&
-                           sum_fbrand_fr = dt_sum_landed_fr,&
-                           sum_valid = dt_sum_valid,   &
+                           sum_fbrand   = dt_sum_landed,&
+                           sum_fbrand_fr= dt_sum_landed_fr,&
+                           sum_valid    = dt_sum_valid,   &
                            sum_valid_fr = dt_sum_valid_fr,&
                            land_hgt   = firebrand_land_hgt, &
                            nresets    = nresets,       &                           
@@ -2927,8 +2936,6 @@ END FUNCTION order_val
 
             ! The mask is based on floor(fs_p_x,y) so deposits should not exist at ie or je
             fs_count_landed_all(is:ie, js:je)  = fs_count_landed_all(is:ie, js:je)  + dt_sum_landed(is:ie, js:je)
-!            fs_count_landed_hist(is:ie, js:je) = fs_count_landed_hist(is:ie, js:je) + dt_sum_valid(is:ie, js:je)
-
             fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) = fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) + dt_sum_valid_fr(ifms:ifme, jfms:jfme)
 
             WRITE (msg,'(3(i12,x))') COUNT(dt_sum_landed(is:ie, js:je) > 0), &
@@ -3061,50 +3068,54 @@ END FUNCTION order_val
             ! Ignite spotfires
             !=============================================================================== 
 
-            IF (nspots > 0) THEN
+            IF ((nspots > 0)) THEN
 
                CALL wrf_debug (wrfdbg, 'SPFire_driver starting spotting risk  ----------------------------------------- ') 
 
-               DO ii=is,ie
-                  DO jj=js,je                  
+               DO ii=ifps,ifpe
+                  DO jj=jfps,jfpe                  
 
                      ! To-do: Need to communicate all memory values of dt_sum_valid among adjacent tiles 
 
-                     fs_landed_adj(ii,jj) = COUNT( dt_sum_valid(ii-1:ii+1, jj-1:jj+1) > 0 )
-                     IF ((fs_ignthresh > 0) .AND. (fs_landed_adj(ii,jj) >= fs_ignthresh)) THEN
-                        
-                        ! Find locations with highest deposits to determine ignition location
+                     ! Count adjacent points with valid landings
+                     ! fs_landed_adj(ii,jj) = COUNT( dt_sum_valid(ii-1:ii+1, jj-1:jj+1) > 0 )
+                     fs_landed_adj_points(ii,jj) = (sum_fuel_valid(fii,fjj) > 0) + & 
+                                                   (sum_fuel_valid(fii-1,fjj) > 0) + (sum_fuel_valid(fii,fjj-1) > 0) + &
+                                                   (sum_fuel_valid(fii+1,fjj) > 0) + (sum_fuel_valid(fii,fjj+1) > 0) + &
+                                                   (sum_fuel_valid(fii-1,fjj+1) > 0) + (sum_fuel_valid(fii+1,fjj-1) > 0) + &
+                                                   (sum_fuel_valid(fii+1,fjj+1) > 0) + (sum_fuel_valid(fii-1,fjj-1) > 0)
 
+                     fs_landed_adj_count(ii,jj) = sum_fuel_valid(fii,fjj)  + & 
+                                                  sum_fuel_valid(fii-1,fjj) + sum_fuel_valid(fii,fjj-1) + &
+                                                  sum_fuel_valid(fii+1,fjj) + sum_fuel_valid(fii,fjj+1) + &
+                                                  sum_fuel_valid(fii-1,fjj+1) + sum_fuel_valid(fii+1,fjj-1) + &
+                                                  sum_fuel_valid(fii+1,fjj+1) + sum_fuel_valid(fii-1,fjj-1)                                             
+                        
                         ign_i = 0
                         ign_j = 0
-                        maxsum=0
 
-                        maxsum = MAXVAL(sum_fuel_valid(atm2fire_ij(ii-1,srx): atm2fire_ij(ii+2,srx)-1, &
-                                                    atm2fire_ij(jj-1,sry): atm2fire_ij(jj+2,sry)-1))
+                        IF ( (sum_fuel_valid(fii,fjj) > 0) .AND. &
+                             (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
+                             (fs_landed_adj_count(ii,jj) > fs_ignthresh) ) THEN
 
-                        IF (maxsum > 0) THEN
-                           DO fii=atm2fire_ij(ii-1,srx), atm2fire_ij(ii+2,srx)-1 
-                              DO fjj=atm2fire_ij(jj-1,sry), atm2fire_ij(jj+2,sry)-1 
-                                 
-                                 IF ( sum_fuel_valid(fii,fjj) == maxsum ) THEN
-                                    ign_i= fii
-                                    ign_j= fjj
-                                    ignite_flag(ign_i,ign_j) = 1
 
-                                    WRITE (msg,'(4(i8,1x))') ii,jj, ign_i,ign_j
-                                    CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition  >>> '// msg)
+                           ign_i= fii
+                           ign_j= fjj
+                           ignite_flag(ign_i,ign_j) = 1
+                             
+                           WRITE (msg,'(4(i8,1x))') ii,jj, ign_i,ign_j
+                           CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition  >>> '// msg)
 
-                                 ENDIF
+                        ENDIF
 
-                                 ! ign_i= ign_i + dt_sum_valid_fr(fii,fjj) * fii
-                                 ! ign_j= ign_j + dt_sum_valid_fr(fii,fjj) * fjj
-                                 ! total = total + dt_sum_valid_fr(fii,fjj)
+                              ! ign_i= ign_i + dt_sum_valid_fr(fii,fjj) * fii
+                              ! ign_j= ign_j + dt_sum_valid_fr(fii,fjj) * fjj
+                              ! total = total + dt_sum_valid_fr(fii,fjj)
 
-                              ENDDO
                            ENDDO
+                        ENDDO
                         ! ign_i = FLOOR(REAL(ign_i)/REAL(total))
                         ! ign_j = FLOOR(REAL(ign_j)/REAL(total))
-                        ENDIF
 
                      ENDIF
                   ENDDO
@@ -3121,6 +3132,7 @@ END FUNCTION order_val
 
          IF (active_br /= COUNT( fs_p_id > 0 ) ) CALL wrf_error_fatal('SPFire_driver: Active brands do not match!')
 
+         IF ((hist_flag) .AND. (grid%itimestep > 1)) fs_count_reset = .TRUE. ! true
 
         !===============================================================================
         ! Calculate Spotfire Likelihood at history output time 
