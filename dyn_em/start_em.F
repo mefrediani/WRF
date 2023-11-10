@@ -2235,7 +2235,7 @@ if(config_flags%ifire.eq.2)then
                fs_landed_adj_count  = grid%fs_landed_adj_count,  &
                fs_spot_ign          = grid%fs_spot_ign,          &
                ignite_flag          = grid%ignite_flag,          &
-               sum_fuel_valid       = grid%sum_fuel_valid,       &
+               sum_fuel_valid       = grid%fs_sum_fuel_valid,    &
                fs_max_travel_dist   = grid%fs_max_travel_dist)
 
 

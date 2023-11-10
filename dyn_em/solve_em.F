@@ -4889,7 +4889,7 @@ BENCH_END(bc_2d_tim)
                fs_landed_adj_count  = grid%fs_landed_adj_count,    &
                fs_spot_ign          = grid%fs_spot_ign,            &
                ignite_flag          = grid%ignite_flag,            &
-               sum_fuel_valid       = grid%sum_fuel_valid,            &
+               sum_fuel_valid       = grid%fs_sum_fuel_valid,      &
                fs_max_travel_dist   = grid%fs_max_travel_dist)
        CALL wrf_debug (0 , 'solve: done with firebrand_spotting_em_driver.' )
 

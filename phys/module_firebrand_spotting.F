@@ -107,6 +107,7 @@ MODULE module_firebrand_spotting
     INTEGER, SAVE :: fs_gen_lim 
     INTEGER, SAVE :: fs_gen_dt
     INTEGER, SAVE :: fs_ignthresh
+    INTEGER, SAVE :: fs_ignneighb
 
     REAL,    SAVE :: firebrand_dens      ! 513000.0_dp     ! density of firebrand (g / m3)
     REAL,    SAVE :: firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
@@ -3079,49 +3080,45 @@ END FUNCTION order_val
 
                      ! Count adjacent points with valid landings
                      ! fs_landed_adj(ii,jj) = COUNT( dt_sum_valid(ii-1:ii+1, jj-1:jj+1) > 0 )
-                     fs_landed_adj_points(ii,jj) = (sum_fuel_valid(fii,fjj) > 0) + & 
-                                                   (sum_fuel_valid(fii-1,fjj) > 0) + (sum_fuel_valid(fii,fjj-1) > 0) + &
-                                                   (sum_fuel_valid(fii+1,fjj) > 0) + (sum_fuel_valid(fii,fjj+1) > 0) + &
-                                                   (sum_fuel_valid(fii-1,fjj+1) > 0) + (sum_fuel_valid(fii+1,fjj-1) > 0) + &
-                                                   (sum_fuel_valid(fii+1,fjj+1) > 0) + (sum_fuel_valid(fii-1,fjj-1) > 0)
+                     fs_landed_adj_points(ii,jj) = COUNT([sum_fuel_valid(ii,jj) > 0]) + & 
+                                                   COUNT([sum_fuel_valid(ii-1,jj) > 0]) +   COUNT([sum_fuel_valid(ii,jj-1) > 0]) + &
+                                                   COUNT([sum_fuel_valid(ii+1,jj) > 0]) +   COUNT([sum_fuel_valid(ii,jj+1) > 0]) + &
+                                                   COUNT([sum_fuel_valid(ii-1,jj+1) > 0]) + COUNT([sum_fuel_valid(ii+1,jj-1) > 0]) + &
+                                                   COUNT([sum_fuel_valid(ii+1,jj+1) > 0]) + COUNT([sum_fuel_valid(ii-1,jj-1) > 0])
 
-                     fs_landed_adj_count(ii,jj) = sum_fuel_valid(fii,fjj)  + & 
-                                                  sum_fuel_valid(fii-1,fjj) + sum_fuel_valid(fii,fjj-1) + &
-                                                  sum_fuel_valid(fii+1,fjj) + sum_fuel_valid(fii,fjj+1) + &
-                                                  sum_fuel_valid(fii-1,fjj+1) + sum_fuel_valid(fii+1,fjj-1) + &
-                                                  sum_fuel_valid(fii+1,fjj+1) + sum_fuel_valid(fii-1,fjj-1)                                             
+                     fs_landed_adj_count(ii,jj) = sum_fuel_valid(ii,jj)  + & 
+                                                  sum_fuel_valid(ii-1,jj) + sum_fuel_valid(ii,jj-1) + &
+                                                  sum_fuel_valid(ii+1,jj) + sum_fuel_valid(ii,jj+1) + &
+                                                  sum_fuel_valid(ii-1,jj+1) + sum_fuel_valid(ii+1,jj-1) + &
+                                                  sum_fuel_valid(ii+1,jj+1) + sum_fuel_valid(ii-1,jj-1)                                             
                         
-                        ign_i = 0
-                        ign_j = 0
+                     ign_i = 0
+                     ign_j = 0
 
-                        IF ( (sum_fuel_valid(fii,fjj) > 0) .AND. &
-                             (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
-                             (fs_landed_adj_count(ii,jj) > fs_ignthresh) ) THEN
+                     IF ( (sum_fuel_valid(ii,jj) > 0) .AND. &
+                          (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
+                          (fs_landed_adj_count(ii,jj) > fs_ignthresh) ) THEN
 
 
-                           ign_i= fii
-                           ign_j= fjj
-                           ignite_flag(ign_i,ign_j) = 1
+                        ign_i= ii
+                        ign_j= jj
+                        ignite_flag(ign_i,ign_j) = 1
                              
-                           WRITE (msg,'(4(i8,1x))') ii,jj, ign_i,ign_j
-                           CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition  >>> '// msg)
-
-                        ENDIF
-
-                              ! ign_i= ign_i + dt_sum_valid_fr(fii,fjj) * fii
-                              ! ign_j= ign_j + dt_sum_valid_fr(fii,fjj) * fjj
-                              ! total = total + dt_sum_valid_fr(fii,fjj)
-
-                           ENDDO
-                        ENDDO
-                        ! ign_i = FLOOR(REAL(ign_i)/REAL(total))
-                        ! ign_j = FLOOR(REAL(ign_j)/REAL(total))
-
+                        WRITE (msg,'(4(i8,1x))') ii,jj, ign_i,ign_j
+                        CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition  >>> '// msg)
+                        
                      ENDIF
+
+                     ! ign_i= ign_i + dt_sum_valid_fr(ii,jj) * ii
+                     ! ign_j= ign_j + dt_sum_valid_fr(ii,jj) * jj
+                     ! total = total + dt_sum_valid_fr(ii,jj)
+
                   ENDDO
                ENDDO
+               ! ign_i = FLOOR(REAL(ign_i)/REAL(total))
+               ! ign_j = FLOOR(REAL(ign_j)/REAL(total))
 
-               fs_spot_ign(is:ie,js:je) = fs_spot_ign(is:ie,js:je) + ignite_flag(is:ie,js:je)
+               fs_spot_ign(ifps:ifpe,jfps:jfpe) = fs_spot_ign(ifps:ifpe,jfps:jfpe) + ignite_flag(ifps:ifpe,jfps:jfpe)
 
             ENDIF ! IF (nspots > 0) THEN    
          ENDIF ! IF (active_br > 0) for deposit only
