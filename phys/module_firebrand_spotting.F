@@ -1309,11 +1309,13 @@ END FUNCTION order_val
             IEEE_IS_NAN(fbprop%p_temp) .OR. &
             IEEE_IS_NAN(fbprop%p_tvel)) THEN
 
-           IF(IEEE_IS_NAN(fbprop%p_mass)) fbprop%p_mass = ZERO_DP
            IF(IEEE_IS_NAN(fbprop%p_diam)) fbprop%p_diam = ZERO_DP
            IF(IEEE_IS_NAN(fbprop%p_effd)) fbprop%p_effd = ZERO_DP
            IF(IEEE_IS_NAN(fbprop%p_temp)) fbprop%p_temp = ZERO_DP
-           IF(IEEE_IS_NAN(fbprop%p_tvel)) fbprop%p_tvel = ZERO_DP
+
+           ! Force mass & tvel to be zero if any of the above is zero
+           fbprop%p_mass = ZERO_DP
+           fbprop%p_tvel = ZERO_DP
 
         ELSE
 
@@ -1723,7 +1725,8 @@ END FUNCTION order_val
         REAL,    INTENT(INOUT), DIMENSION(:) :: fs_ip_temp, fs_ip_tvel
 
         REAL,    INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_count_landed_all, fs_fire_area ! Use memory bounds so positons match indices
-        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask, fs_landed_adj_points,fs_landed_adj_count
+        INTEGER, INTENT(INOUT), DIMENSION(ims:ime,jms:jme) :: fs_landing_mask
+        INTEGER, INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_landed_adj_points,fs_landed_adj_count
 
         ! fire memory bounds, not fire tile bounds
         REAL,    INTENT(INOUT), DIMENSION(ifms:ifme,jfms:jfme) :: fs_fire_ROSdt, fs_max_travel_dist
@@ -1894,6 +1897,8 @@ END FUNCTION order_val
             fs_gen_hist_fr(ifms:ifme,jfms:jfme) = 0
             fs_spot_ign(ifms:ifme,jfms:jfme) = 0
             fs_count_reset      = .FALSE.
+            fs_landed_adj_points(ifms:ifme, jfms:jfme) = ZERO_dp
+            fs_landed_adj_count(ifms:ifme, jfms:jfme)  = ZERO_dp
         ENDIF
 
         !===============================================================================
@@ -1904,13 +1909,12 @@ END FUNCTION order_val
         fs_fire_area(ims:ime , jms:jme) = ZERO_dp
         dt_sum_landed(ims:ime, jms:jme) = ZERO_dp
         dt_sum_valid(ims:ime , jms:jme) = ZERO_dp
-        fs_landed_adj_points(ims:ime, jms:jme) = ZERO_dp
-        fs_landed_adj_count(ims:ime, jms:jme)  = ZERO_dp
 
         ignite_flag(ifms:ifme, jfms:jfme) = 0 
         dt_sum_landed_fr(  ifms:ifme, jfms:jfme) = ZERO_dp
         dt_sum_valid_fr(   ifms:ifme, jfms:jfme) = ZERO_dp
-        fs_max_travel_dist(ifms:ifme, jfms:jfme) = ZERO_dp
+        dt_sum_removed_fr(ifms:ifme, jfms:jfme) = ZERO_dp
+        !fs_max_travel_dist does not reset
         sum_fuel_valid(    ifms:ifme, jfms:jfme) = ZERO_dp
 
         !===============================================================================
@@ -2588,6 +2592,7 @@ END FUNCTION order_val
             fs_p_temp(:active_br) = fs_p_prop(:active_br)%p_temp
             fs_p_tvel(:active_br) = fs_p_prop(:active_br)%p_tvel
 
+            ! Calculate travel distance
             fs_p_dxy(:active_br) = fs_p_dxy(:active_br) + SQRT((xout-xin)**2 + (yout-yin)**2)
             !fs_p_dxy(:active_br) = SQRT((fs_p_x(:active_br)-fs_ip_x(:active_br))**2 + (fs_p_y(:active_br)-fs_ip_y(:active_br))**2)
             !CALL wrf_debug (wrfdbg, 'SPFire_driver end transport   ---------------------------------------------------- ')
@@ -3091,13 +3096,18 @@ END FUNCTION order_val
                                                   sum_fuel_valid(ii+1,jj) + sum_fuel_valid(ii,jj+1) + &
                                                   sum_fuel_valid(ii-1,jj+1) + sum_fuel_valid(ii+1,jj-1) + &
                                                   sum_fuel_valid(ii+1,jj+1) + sum_fuel_valid(ii-1,jj-1)                                             
-                        
+
+                     IF (sum_fuel_valid(ii,jj) > 0) THEN                        
+                        WRITE (msg,'(4(i8,1x))') ii,jj, fs_landed_adj_points(ii,jj), fs_landed_adj_count(ii,jj)
+                        CALL wrf_debug (wrfdbg, 'SPFire_driver ignition adj  >>> '// msg)
+                     ENDIF
+
                      ign_i = 0
                      ign_j = 0
 
                      IF ( (sum_fuel_valid(ii,jj) > 0) .AND. &
                           (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
-                          (fs_landed_adj_count(ii,jj) > fs_ignthresh) ) THEN
+                          (fs_landed_adj_count(ii,jj) >= fs_ignthresh) ) THEN
 
 
                         ign_i= ii
@@ -3105,18 +3115,12 @@ END FUNCTION order_val
                         ignite_flag(ign_i,ign_j) = 1
                              
                         WRITE (msg,'(4(i8,1x))') ii,jj, ign_i,ign_j
-                        CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition  >>> '// msg)
+                        CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition ij >>> '// msg)
                         
                      ENDIF
 
-                     ! ign_i= ign_i + dt_sum_valid_fr(ii,jj) * ii
-                     ! ign_j= ign_j + dt_sum_valid_fr(ii,jj) * jj
-                     ! total = total + dt_sum_valid_fr(ii,jj)
-
                   ENDDO
                ENDDO
-               ! ign_i = FLOOR(REAL(ign_i)/REAL(total))
-               ! ign_j = FLOOR(REAL(ign_j)/REAL(total))
 
                fs_spot_ign(ifps:ifpe,jfps:jfpe) = fs_spot_ign(ifps:ifpe,jfps:jfpe) + ignite_flag(ifps:ifpe,jfps:jfpe)
 
