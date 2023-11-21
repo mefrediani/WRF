@@ -3107,13 +3107,17 @@ END FUNCTION order_val
 
                      IF ( (sum_fuel_valid(ii,jj) > 0) .AND. &
                           (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
-                          (fs_landed_adj_count(ii,jj) >= fs_ignthresh) ) THEN
+                          (fs_landed_adj_count(ii,jj) > fs_ignthresh) ) THEN ! ignthresh should be >= 1. If 0, do not ignite.
 
 
                         ign_i= ii
                         ign_j= jj
                         ignite_flag(ign_i,ign_j) = 1
-                             
+                        grid%lfn(i,j) = -1
+                        ! Ignition will happen on next timestep
+                        ! grid%tign_g(i,j) = grid%itimestep * grid%dt + 0.5*grid%dt 
+
+
                         WRITE (msg,'(4(i8,1x))') ii,jj, ign_i,ign_j
                         CALL wrf_debug (wrfdbg, 'SPFire_driver spot ignition ij >>> '// msg)
                         
