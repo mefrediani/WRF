@@ -3113,7 +3113,7 @@ END FUNCTION order_val
                         ign_i= ii
                         ign_j= jj
                         ignite_flag(ign_i,ign_j) = 1
-                        grid%lfn(i,j) = -1
+                        grid%lfn(ii,jj) = -1
                         ! Ignition will happen on next timestep
                         ! grid%tign_g(i,j) = grid%itimestep * grid%dt + 0.5*grid%dt 
 
