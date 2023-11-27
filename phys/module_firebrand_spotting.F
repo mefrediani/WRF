@@ -1889,16 +1889,13 @@ END FUNCTION order_val
 
         IF (fs_count_reset) THEN ! if true
             !CALL wrf_debug (wrfdbg, 'SPFire_lkhd: resetting fs_count_reset!')
-!            fs_count_landed_hist(:,:)    = ZERO_dp
             fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) = ZERO_dp
             fs_count_burnout_hist_fr(ifms:ifme, jfms:jfme)= ZERO_dp
-!            fs_fuel_spotting_risk(:,:)   = ZERO_dp
-!            fs_gen_hist(ims:ime,jms:jme) = 0
             fs_gen_hist_fr(ifms:ifme,jfms:jfme) = 0
             fs_spot_ign(ifms:ifme,jfms:jfme) = 0
-            fs_count_reset      = .FALSE.
             fs_landed_adj_points(ifms:ifme, jfms:jfme) = ZERO_dp
             fs_landed_adj_count(ifms:ifme, jfms:jfme)  = ZERO_dp
+            fs_count_reset      = .FALSE.
         ENDIF
 
         !===============================================================================
@@ -2945,24 +2942,28 @@ END FUNCTION order_val
             fs_count_landed_all(is:ie, js:je)  = fs_count_landed_all(is:ie, js:je)  + dt_sum_landed(is:ie, js:je)
             fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) = fs_count_landed_hist_fr(ifms:ifme, jfms:jfme) + dt_sum_valid_fr(ifms:ifme, jfms:jfme)
 
-            WRITE (msg,'(3(i12,x))') COUNT(dt_sum_landed(is:ie, js:je) > 0), &
-                 INT(SUM(dt_sum_landed(is:ie, js:je))), &
-                 INT(SUM(dt_sum_landed_fr(ifms:ifme, jfms:jfme)))
-            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br counts: '//msg)
-
-            WRITE (msg,'(3(i12,x))') COUNT(dt_sum_valid(is:ie, js:je) > 0), &
-                 INT(SUM(dt_sum_valid(is:ie, js:je))), &
-                 INT(SUM(dt_sum_valid_fr(ifms:ifme, jfms:jfme)))
-            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit valid counts: '//msg)
-
             DO ii=ifms,ifme
                DO jj=jfms,jfme                  
                   fs_max_travel_dist(ii,jj) = MAX(fs_max_travel_dist(ii,jj), travel_dist(ii,jj))
                ENDDO
             ENDDO
+            
+            IF (nresets > 0) THEN
 
-            WRITE (msg,'(1(i12,x))') MAXVAL(travel_dist)
-            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit max distance: '//msg)
+               WRITE (msg,'(3(i12,x))') COUNT(dt_sum_landed(is:ie, js:je) > 0), &
+                    INT(SUM(dt_sum_landed(is:ie, js:je))), &
+                    INT(SUM(dt_sum_landed_fr(ifms:ifme, jfms:jfme)))
+               CALL wrf_debug (wrfdbg, 'SPFire_driver deposit br counts: '//msg)
+
+               WRITE (msg,'(3(i12,x))') COUNT(dt_sum_valid(is:ie, js:je) > 0), &
+                    INT(SUM(dt_sum_valid(is:ie, js:je))), &
+                    INT(SUM(dt_sum_valid_fr(ifms:ifme, jfms:jfme)))
+               CALL wrf_debug (wrfdbg, 'SPFire_driver deposit valid counts: '//msg)
+
+               WRITE (msg,'(1(f12.6,x))') MAXVAL(travel_dist)
+               CALL wrf_debug (wrfdbg, 'SPFire_driver deposit max distance: '//msg)
+
+            ENDIF
 
             DEALLOCATE(travel_dist)
 
@@ -3109,7 +3110,7 @@ END FUNCTION order_val
                      ign_i = 0
                      ign_j = 0
 
-                     IF ( (sum_fuel_valid(ii,jj) > 0) .AND. &
+                     IF ( (sum_fuel_valid(ii,jj) > 0) .AND. (fs_ignthresh > 0) .AND. &
                           (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
                           (fs_landed_adj_count(ii,jj) >= fs_ignthresh) ) THEN ! ignthresh should be >= 1. If 0, do not ignite.
 
