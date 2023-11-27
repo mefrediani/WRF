@@ -1850,7 +1850,7 @@ END FUNCTION order_val
         ! It was a dummy variable back when fuel moisture was not implemented in wrf-v4.0.1
         !-------------------------------------------------------------------------------
 
-        REAL,  DIMENSION(ifps:ifpe,jfps:jfpe)  :: fmcg_2df        
+        REAL,  DIMENSION(ifms:ifme,jfms:jfme)  :: fmcg_2df        
 
         !===============================================================================
         ! Begin
@@ -1957,7 +1957,7 @@ END FUNCTION order_val
         ! Updated fuel moisture from WRF-fire
         !-------------------------------------------------------------------------------
 
-        fmcg_2df(ifps:ifpe,jfps:jfpe) = grid%fmc_g(ifps:ifpe,jfps:jfpe)
+        fmcg_2df(ifms:ifme,jfms:jfme) = grid%fmc_g(ifms:ifme,jfms:jfme)
 
         !===============================================================================
         ! Firebrand Generation - Release Firebrands - Part 1
@@ -4117,7 +4117,8 @@ PURE SUBROUTINE deposit_br(fs_p_id, fs_p_x, fs_p_y, fs_p_z, fs_p_dxy, &
 
     !INTEGER, INTENT(IN) :: active_br
 
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: rx, ry, rid, frx, fry, dxy
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: rx, ry, rid, frx, fry
+    REAL,    ALLOCATABLE, DIMENSION(:) :: dxy
     LOGICAL, DIMENSION(fs_array_maxsize)    :: bounds_mask
     !LOGICAL, DIMENSION(fs_array_maxsize)    :: sparse_mask
     INTEGER :: x, y, i0,k ! counters
