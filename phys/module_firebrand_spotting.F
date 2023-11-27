@@ -1951,6 +1951,7 @@ END FUNCTION order_val
         firebrand_dens_char = cf%fs_firebrand_dens_char ! 299000.0_dp     ! density of char (g m-3) [gupta et al 2002; fuel]
         
         fs_ignthresh = cf%fs_ignthresh
+        fs_ignneighb = cf%fs_ignneighb
         srx = grid%sr_x
         sry = grid%sr_y
 
@@ -2960,6 +2961,9 @@ END FUNCTION order_val
                ENDDO
             ENDDO
 
+            WRITE (msg,'(1(i12,x))') MAXVAL(travel_dist)
+            CALL wrf_debug (wrfdbg, 'SPFire_driver deposit max distance: '//msg)
+
             DEALLOCATE(travel_dist)
 
             !CALL wrf_debug (wrfdbg, 'SPFire_driver deposit done')
@@ -3107,7 +3111,7 @@ END FUNCTION order_val
 
                      IF ( (sum_fuel_valid(ii,jj) > 0) .AND. &
                           (fs_landed_adj_points(ii,jj) >= fs_ignneighb) .AND. &
-                          (fs_landed_adj_count(ii,jj) > fs_ignthresh) ) THEN ! ignthresh should be >= 1. If 0, do not ignite.
+                          (fs_landed_adj_count(ii,jj) >= fs_ignthresh) ) THEN ! ignthresh should be >= 1. If 0, do not ignite.
 
 
                         ign_i= ii
