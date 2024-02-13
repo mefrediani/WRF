@@ -3050,12 +3050,12 @@ END FUNCTION order_val
             ! Save active particles to fs_active_inst
             !===============================================================================            
 
-            CALL count_active_3d(fs_p_id = fs_p_id, &
-                                 fs_p_x  = fs_p_x, &
-                                 fs_p_y  = fs_p_y, &
-                                 fs_p_z  = fs_p_z, &
-                                 active_inst=grid%fs_active_inst)
-            CALL wrf_debug (wrfdbg, 'SPFire_driver wrote active_3d  ----------------------------------------- ') 
+            ! CALL count_active_3d(fs_p_id = fs_p_id, &
+            !                      fs_p_x  = fs_p_x, &
+            !                      fs_p_y  = fs_p_y, &
+            !                      fs_p_z  = fs_p_z, &
+            !                      active_inst=grid%fs_active_inst)
+            ! CALL wrf_debug (wrfdbg, 'SPFire_driver wrote active_3d  ----------------------------------------- ') 
 
             ! convert fire_area from fire grid to atm grid
             !-------------------------------------------------------------------------------

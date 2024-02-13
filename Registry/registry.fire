@@ -386,7 +386,7 @@ state integer  fs_spot_idmax             -         dyn_em      1         -     r
 state logical  fs_count_reset            -         dyn_em      1         -      r  "fs_count_reset"       "flag to reset deposit count"
 state  real    fs_fire_area	         ij        misc        1         -      h  "fs_fire_area"	  "fire area on meteorological grid"
 state  real    fs_count_landed_all       ij        misc        1         -     rh  "fs_count_landed_all"  "firebrand count: landed since sim start"
-state  integer fs_active_inst           i{k}j      misc        1         z      h  "fs_active_inst"	  "Active firebrands - instantaneous - on atm mesh"
+state  integer fs_active_inst           i{k}j      misc        1         z      -  "fs_active_inst"	  "Active firebrands - instantaneous - on atm mesh"
 state  integer fs_landing_mask           ij        misc        1         -      h  "fs_landing_mask"      "valid landing gridpoints"
 state  integer fs_landed_adj_points      *i*j      fire        1         -      h  "fs_landed_adj_points"	  "firebrand sum of landed and adjecent neighbors"
 state  integer fs_landed_adj_count       *i*j      fire        1         -      h  "fs_landed_adj_count"	  "firebrand sum of landed and adjecent neighbors"
