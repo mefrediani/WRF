@@ -347,7 +347,7 @@ rconfig   integer fs_array_maxsize               namelist,fire  1  100000       
 rconfig   integer fs_firebrand_gen_lim           namelist,fire  1       0       -      "fs_firebrand_gen_lim"          "Limit number of firebrands generated at any given time (set it to 0 to turn spotting off)" 
 rconfig   integer fs_firebrand_gen_dt            namelist,fire  1       5       -      "fs_firebrand_gen_dt"           "Interval between consecutive generation cycles (dt is a factor applied to the model's time_step)" 
 rconfig   integer fs_firebrand_gen_levels        namelist,fire  1       5       -      "fs_firebrand_gen_levels"       "Number of vertical levels to generate firebrands (levels are distributed between 1 meter AGL and max height)"
-rconfig   integer fs_firebrand_gen_maxhgt        namelist,fire  1      50       -      "fs_firebrand_gen_maxhgt"       "Max height to generate firebrands (in meters and greater than 1)"
+rconfig   integer fs_firebrand_gen_maxhgt        namelist,fire  1      15       -      "fs_firebrand_gen_maxhgt"       "Max height to generate firebrands (in meters and greater than 1)"
 rconfig   logical fs_firebrand_gen_levrand       namelist,fire  1    .false.    -      "fs_firebrand_gen_levrand"      "Flag to generate firebrands at random heights between 1m AGL and maxhgt"
 rconfig   integer fs_firebrand_gen_levrand_seed  namelist,fire  1       1       -      "fs_firebrand_gen_levrand_seed" "Seed used for fs_firebrand_gen_levrand"
 rconfig   integer fs_firebrand_gen_mom3d_dt      namelist,fire  1       0       -      "fs_firebrand_gen_mom3d_dt"     "Number of timesteps for firebrands to build 3-D momentum after generation (i.e., massless particle transport)"
