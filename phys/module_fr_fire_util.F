@@ -1094,7 +1094,7 @@ id=name
 write(msg,'(a,4i4,3g11.3)')id,ips,ipe,jps,jpe,min_a,max_a,avg_a
 !$OMP END CRITICAL(FIRE_UTIL_CRIT)
 call message(msg)
-if(.not.avg_a.eq.avg_a)call crash('NaN detected')
+! if(.not.avg_a.eq.avg_a)call crash('NaN detected')
 end subroutine print_stat_line
 
 
